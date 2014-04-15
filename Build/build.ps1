@@ -1,12 +1,12 @@
 ﻿properties { 
-  $zipFileName = "Json50r5.zip"
-  $majorVersion = "4.5"
-  $majorWithReleaseVersion = "5.0.5"
+  $zipFileName = "Json60r2.zip"
+  $majorVersion = "6.0"
+  $majorWithReleaseVersion = "6.0.2"
   $version = GetVersion $majorWithReleaseVersion
   $signAssemblies = $false
-  $signKeyPath = "D:\Development\Releases\newtonsoft.snk"
+  $signKeyPath = "C:\Development\Releases\newtonsoft.snk"
   $buildDocumentation = $false
-  $buildNuGet = $false
+  $buildNuGet = $true
   $treatWarningsAsErrors = $false
   
   $baseDir  = resolve-path ..
@@ -18,7 +18,7 @@
   $workingDir = "$baseDir\Working"
   $builds = @(
     @{Name = "Newtonsoft.Json"; TestsName = "Newtonsoft.Json.Tests"; Constants=""; FinalDir="Net45"; NuGetDir = "net45"; Framework="net-4.0"; Sign=$true},
-    @{Name = "Newtonsoft.Json.Portable"; TestsName = "Newtonsoft.Json.Tests.Portable"; Constants="PORTABLE"; FinalDir="Portable"; NuGetDir = "portable-net45+wp80+win8"; Framework="net-4.0"; Sign=$true},
+    @{Name = "Newtonsoft.Json.Portable"; TestsName = "Newtonsoft.Json.Tests.Portable"; Constants="PORTABLE"; FinalDir="Portable"; NuGetDir = "portable-net45+wp80+win8+wpa81"; Framework="net-4.0"; Sign=$true},
     @{Name = "Newtonsoft.Json.Portable40"; TestsName = "Newtonsoft.Json.Tests.Portable40"; Constants="PORTABLE40"; FinalDir="Portable40"; NuGetDir = "portable-net40+sl4+wp7+win8"; Framework="net-4.0"; Sign=$true},
     @{Name = "Newtonsoft.Json.WinRT"; TestsName = $null; Constants="NETFX_CORE"; FinalDir="WinRT"; NuGetDir = "netcore45"; Framework="net-4.5"; Sign=$true},
     @{Name = "Newtonsoft.Json.Net40"; TestsName = "Newtonsoft.Json.Tests.Net40"; Constants="NET40"; FinalDir="Net40"; NuGetDir = "net40"; Framework="net-4.0"; Sign=$true},
@@ -76,12 +76,15 @@ task Package -depends Build {
   
   if ($buildNuGet)
   {
-    New-Item -Path $workingDir\NuGet -ItemType Directory
+    New-Item -Path $workingDir\NuGet -ItemType Directory    
     Copy-Item -Path "$buildDir\Newtonsoft.Json.nuspec" -Destination $workingDir\NuGet\Newtonsoft.Json.nuspec -recurse
+
+    New-Item -Path $workingDir\NuGet\tools -ItemType Directory
+    Copy-Item -Path "$buildDir\install.ps1" -Destination $workingDir\NuGet\tools\install.ps1 -recurse
     
     foreach ($build in $builds)
     {
-      if ($build.NuGetDir -ne $null)
+      if ($build.NuGetDir)
       {
         $name = $build.TestsName
         $finalDir = $build.FinalDir
@@ -94,6 +97,8 @@ task Package -depends Build {
       }
     }
   
+    robocopy $sourceDir $workingDir\NuGet\src *.cs /S /NP /XD Newtonsoft.Json.Tests obj | Out-Default
+
     exec { .\Tools\NuGet\NuGet.exe pack $workingDir\NuGet\Newtonsoft.Json.nuspec -Symbols }
     move -Path .\*.nupkg -Destination $workingDir\NuGet
   }
@@ -115,7 +120,7 @@ task Package -depends Build {
   Copy-Item -Path $docDir\license.txt -Destination $workingDir\Package\
 
   robocopy $sourceDir $workingDir\Package\Source\Src /MIR /NP /XD .svn bin obj TestResults AppPackages /XF *.suo *.user | Out-Default
-  robocopy $buildDir $workingDir\Package\Source\Build /MIR /NP /XD .svn | Out-Default
+  robocopy $buildDir $workingDir\Package\Source\Build /MIR /NP /XD .svn /XF runbuild.txt | Out-Default
   robocopy $docDir $workingDir\Package\Source\Doc /MIR /NP /XD .svn | Out-Default
   robocopy $toolsDir $workingDir\Package\Source\Tools /MIR /NP /XD .svn | Out-Default
   

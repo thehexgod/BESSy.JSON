@@ -9,7 +9,7 @@
     <RootNamespace>Newtonsoft.Json</RootNamespace>
     <AssemblyName>Newtonsoft.Json</AssemblyName>
     <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
-    <TargetFrameworkProfile>Profile78</TargetFrameworkProfile>
+    <TargetFrameworkProfile>Profile225</TargetFrameworkProfile>
     <FileAlignment>512</FileAlignment>
     <ProjectTypeGuids>{786C830F-07A1-408B-BD7F-6EE04809D6DB};{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}</ProjectTypeGuids>
     <MinimumVisualStudioVersion>10.0</MinimumVisualStudioVersion>
@@ -39,11 +39,8 @@
   <ItemGroup>
     <Reference Include="System" />
     <Reference Include="System.Core" />
-    <Reference Include="System.Net" />
     <Reference Include="System.Runtime.Serialization" />
-    <Reference Include="System.ServiceModel" />
     <Reference Include="System.Xml" />
-    <Reference Include="System.Xml.Serialization" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Bson\BsonBinaryType.cs" />
@@ -60,6 +57,7 @@
     <Compile Include="Converters\DataSetConverter.cs" />
     <Compile Include="Converters\DataTableConverter.cs" />
     <Compile Include="Converters\DateTimeConverterBase.cs" />
+    <Compile Include="Converters\DiscriminatedUnionConverter.cs" />
     <Compile Include="Converters\EntityKeyMemberConverter.cs" />
     <Compile Include="Converters\ExpandoObjectConverter.cs" />
     <Compile Include="Converters\IsoDateTimeConverter.cs" />
@@ -110,11 +108,20 @@
     <Compile Include="Linq\JContainer.cs" />
     <Compile Include="Linq\JEnumerable.cs" />
     <Compile Include="Linq\JObject.cs" />
-    <Compile Include="Linq\JPath.cs" />
     <Compile Include="Linq\JProperty.cs" />
     <Compile Include="Linq\JPropertyDescriptor.cs" />
     <Compile Include="Linq\JPropertyKeyedCollection.cs" />
     <Compile Include="Linq\JRaw.cs" />
+    <Compile Include="Linq\JsonPath\ArrayIndexFilter.cs" />
+    <Compile Include="Linq\JsonPath\ArrayMultipleIndexFilter.cs" />
+    <Compile Include="Linq\JsonPath\ArraySliceFilter.cs" />
+    <Compile Include="Linq\JsonPath\FieldMultipleFilter.cs" />
+    <Compile Include="Linq\JsonPath\FieldFilter.cs" />
+    <Compile Include="Linq\JsonPath\JPath.cs" />
+    <Compile Include="Linq\JsonPath\PathFilter.cs" />
+    <Compile Include="Linq\JsonPath\QueryExpression.cs" />
+    <Compile Include="Linq\JsonPath\QueryFilter.cs" />
+    <Compile Include="Linq\JsonPath\ScanFilter.cs" />
     <Compile Include="Linq\JToken.cs" />
     <Compile Include="Linq\JTokenEqualityComparer.cs" />
     <Compile Include="Linq\JTokenReader.cs" />
@@ -185,7 +192,7 @@
     <Compile Include="Serialization\ReflectionValueProvider.cs" />
     <Compile Include="Serialization\TraceJsonReader.cs" />
     <Compile Include="Serialization\TraceJsonWriter.cs" />
-    <Compile Include="StreamingContext.cs" />
+    <Compile Include="SpecialPropertyHandling.cs" />
     <Compile Include="StringEscapeHandling.cs" />
     <Compile Include="TraceLevel.cs" />
     <Compile Include="TypeNameHandling.cs" />
@@ -206,7 +213,9 @@
     <Compile Include="Utilities\EnumUtils.cs" />
     <Compile Include="Utilities\EnumValue.cs" />
     <Compile Include="Utilities\EnumValues.cs" />
+    <Compile Include="Utilities\FSharpUtils.cs" />
     <Compile Include="Utilities\ILGeneratorExtensions.cs" />
+    <Compile Include="Utilities\ImmutableCollectionsUtils.cs" />
     <Compile Include="Utilities\JavaScriptUtils.cs" />
     <Compile Include="Utilities\LateBoundReflectionDelegateFactory.cs" />
     <Compile Include="Utilities\LinqBridge.cs" />
