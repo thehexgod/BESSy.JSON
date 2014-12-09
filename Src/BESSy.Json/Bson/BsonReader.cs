@@ -563,7 +563,7 @@ namespace BESSy.Json.Bson
                             dateTime = utcDateTime.ToLocalTime();
                             break;
                         default:
-                            dateTime = utcDateTime;
+                            dateTime = utcDateTime.ToLocalTime();
                             break;
                     }
 

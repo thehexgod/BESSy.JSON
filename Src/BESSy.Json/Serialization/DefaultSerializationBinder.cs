@@ -66,14 +66,17 @@ namespace BESSy.Json.Serialization
                 {
                     // will find assemblies loaded with Assembly.LoadFile outside of the main directory
                     Assembly[] loadedAssemblies = AppDomain.CurrentDomain.GetAssemblies();
-                    foreach (Assembly a in loadedAssemblies)
-                    {
-                        if (a.FullName == assemblyName)
-                        {
-                            assembly = a;
-                            break;
-                        }
-                    }
+
+                    //load partial name first for dynamic assemblies
+                    for (var i = 0; i < loadedAssemblies.Length; i++)
+                        if (loadedAssemblies[i].FullName.StartsWith(assemblyName + ","))
+                        {assembly = loadedAssemblies[i]; break;}
+
+                    //load full names last
+                    if (assembly == null)   
+                        foreach (Assembly a in loadedAssemblies)
+                            if (a.FullName == assemblyName)
+                            { assembly = a; break; }
                 }
 #endif
 

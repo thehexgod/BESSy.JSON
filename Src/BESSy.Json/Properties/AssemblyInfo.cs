@@ -52,7 +52,7 @@ using System.Security;
 [assembly: AllowPartiallyTrustedCallers]
 #endif
 
-#if !SIGNED
+#if DEBUG
 
 [assembly: InternalsVisibleTo("BESSy.Json.Tests")]
 #else
