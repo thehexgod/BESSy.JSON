@@ -24,12 +24,14 @@
 #endregion
 
 using System;
+using System.Collections;
+using System.Collections.Generic;
 using System.ComponentModel;
 
 namespace BESSy.Json.Tests.TestObjects
 {
     [JsonObject(Id = "Person", Title = "Title!", Description = "JsonObjectAttribute description!", MemberSerialization = MemberSerialization.OptIn)]
-#if !NETFX_CORE
+#if !(NETFX_CORE || ASPNETCORE50)
     [Description("DescriptionAttribute description!")]
 #endif
     public class Person
@@ -67,5 +69,10 @@ namespace BESSy.Json.Tests.TestObjects
 
         public string Department { get; set; }
         public string JobTitle { get; set; }
+    }
+
+    public class Manager : Employee
+    {
+        public IList<Employee> Employees { get; set; }
     }
 }

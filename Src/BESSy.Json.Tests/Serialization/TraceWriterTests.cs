@@ -4,18 +4,22 @@ using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using BESSy.Json.Linq;
-#if !(NET20 || NET35 || PORTABLE || PORTABLE40)
+#if !(NET20 || NET35 || PORTABLE || ASPNETCORE50 || PORTABLE40)
 using System.Numerics;
 #endif
 using System.Runtime.Serialization;
 using System.Runtime.Serialization.Formatters;
 using System.Text;
-#if !NETFX_CORE
-using NUnit.Framework;
-#else
+#if NETFX_CORE
 using Microsoft.VisualStudio.TestPlatform.UnitTestFramework;
 using TestFixture = Microsoft.VisualStudio.TestPlatform.UnitTestFramework.TestClassAttribute;
 using Test = Microsoft.VisualStudio.TestPlatform.UnitTestFramework.TestMethodAttribute;
+#elif ASPNETCORE50
+using Xunit;
+using Test = Xunit.FactAttribute;
+using Assert = Newtonsoft.Json.Tests.XUnitAssert;
+#else
+using NUnit.Framework;
 #endif
 using BESSy.Json.Converters;
 using BESSy.Json.Serialization;
@@ -39,7 +43,7 @@ namespace BESSy.Json.Tests.Serialization
     [TestFixture]
     public class TraceWriterTests : TestFixtureBase
     {
-#if !(PORTABLE || NETFX_CORE || PORTABLE40)
+#if !(PORTABLE || ASPNETCORE50 || NETFX_CORE || PORTABLE40)
         [Test]
         public void DiagnosticsTraceWriterTest()
         {
@@ -111,6 +115,9 @@ BESSy.Json Error: 0 : Error!
   ]
 }";
 
+            json = StringAssert.Normalize(json);
+            output = StringAssert.Normalize(output);
+
             Assert.IsTrue(output.Contains(json));
         }
 
@@ -140,7 +147,7 @@ BESSy.Json Error: 0 : Error!
                 {
                     TraceWriter = traceWriter,
                     Converters = { new JavaScriptDateTimeConverter() },
-                    SpecialPropertyHandling = SpecialPropertyHandling.Default
+                    MetadataPropertyHandling = MetadataPropertyHandling.Default
                 });
 
             Console.WriteLine(traceWriter);
@@ -166,6 +173,9 @@ BESSy.Json Error: 0 : Error!
 
             Assert.AreEqual(1039, output.Length);
             Assert.AreEqual(7, memoryTraceWriter.GetTraceMessages().Count());
+
+            json = StringAssert.Normalize(json);
+            output = StringAssert.Normalize(output);
 
             Assert.IsTrue(output.Contains(json));
         }
@@ -279,7 +289,68 @@ BESSy.Json Error: 0 : Error!
             Assert.IsTrue(traceWriter.TraceRecords[2].Message.StartsWith("Finished deserializing System.Collections.Generic.IList`1[System.Int32]. Path 'IntList'"));
             Assert.AreEqual("Started deserializing System.String[]. Path 'StringArray', line 6, position 19.", traceWriter.TraceRecords[3].Message);
             Assert.IsTrue(traceWriter.TraceRecords[4].Message.StartsWith("Finished deserializing System.String[]. Path 'StringArray'"));
-            Assert.AreEqual("Deserializing System.Version using a non-default constructor 'Void .ctor(Int32, Int32, Int32, Int32)'. Path 'Version.Major', line 11, position 13.", traceWriter.TraceRecords[5].Message);
+            Assert.AreEqual("Deserializing System.Version using creator with parameters: Major, Minor, Build, Revision. Path 'Version.Major', line 11, position 13.", traceWriter.TraceRecords[5].Message);
+            Assert.IsTrue(traceWriter.TraceRecords[6].Message.StartsWith("Started deserializing System.Version. Path 'Version'"));
+            Assert.IsTrue(traceWriter.TraceRecords[7].Message.StartsWith("Finished deserializing System.Version. Path 'Version'"));
+            Assert.AreEqual("Started deserializing System.Collections.Generic.IDictionary`2[System.String,System.String]. Path 'StringDictionary.1', line 19, position 9.", traceWriter.TraceRecords[8].Message);
+            Assert.IsTrue(traceWriter.TraceRecords[9].Message.StartsWith("Finished deserializing System.Collections.Generic.IDictionary`2[System.String,System.String]. Path 'StringDictionary'"));
+            Assert.IsTrue(traceWriter.TraceRecords[10].Message.StartsWith("Finished deserializing Newtonsoft.Json.Tests.Serialization.TraceTestObject. Path ''"));
+
+            Assert.IsFalse(traceWriter.TraceRecords.Any(r => r.Level == TraceLevel.Verbose));
+        }
+
+        [Test]
+        public void Populate()
+        {
+            InMemoryTraceWriter traceWriter = new InMemoryTraceWriter
+            {
+                LevelFilter = TraceLevel.Info
+            };
+
+            TraceTestObject o2 = new TraceTestObject();
+
+            JsonConvert.PopulateObject(@"{
+  ""IntList"": [
+    1,
+    2
+  ],
+  ""StringArray"": [
+    ""1"",
+    ""2""
+  ],
+  ""Version"": {
+    ""Major"": 1,
+    ""Minor"": 2,
+    ""Build"": 3,
+    ""Revision"": 4,
+    ""MajorRevision"": 0,
+    ""MinorRevision"": 4
+  },
+  ""StringDictionary"": {
+    ""1"": ""!"",
+    ""Two"": ""!!"",
+    ""III"": ""!!!""
+  }
+}",
+                o2,
+                new JsonSerializerSettings
+                {
+                    TraceWriter = traceWriter,
+                    MetadataPropertyHandling = MetadataPropertyHandling.Default
+                });
+
+            Assert.AreEqual(2, o2.IntList.Count);
+            Assert.AreEqual(2, o2.StringArray.Length);
+            Assert.AreEqual(1, o2.Version.Major);
+            Assert.AreEqual(2, o2.Version.Minor);
+            Assert.AreEqual(3, o2.StringDictionary.Count);
+
+            Assert.AreEqual("Started deserializing Newtonsoft.Json.Tests.Serialization.TraceTestObject. Path 'IntList', line 2, position 13.", traceWriter.TraceRecords[0].Message);
+            Assert.AreEqual("Started deserializing System.Collections.Generic.IList`1[System.Int32]. Path 'IntList', line 2, position 15.", traceWriter.TraceRecords[1].Message);
+            Assert.IsTrue(traceWriter.TraceRecords[2].Message.StartsWith("Finished deserializing System.Collections.Generic.IList`1[System.Int32]. Path 'IntList'"));
+            Assert.AreEqual("Started deserializing System.String[]. Path 'StringArray', line 6, position 19.", traceWriter.TraceRecords[3].Message);
+            Assert.IsTrue(traceWriter.TraceRecords[4].Message.StartsWith("Finished deserializing System.String[]. Path 'StringArray'"));
+            Assert.AreEqual("Deserializing System.Version using creator with parameters: Major, Minor, Build, Revision. Path 'Version.Major', line 11, position 13.", traceWriter.TraceRecords[5].Message);
             Assert.IsTrue(traceWriter.TraceRecords[6].Message.StartsWith("Started deserializing System.Version. Path 'Version'"));
             Assert.IsTrue(traceWriter.TraceRecords[7].Message.StartsWith("Finished deserializing System.Version. Path 'Version'"));
             Assert.AreEqual("Started deserializing System.Collections.Generic.IDictionary`2[System.String,System.String]. Path 'StringDictionary.1', line 19, position 9.", traceWriter.TraceRecords[8].Message);
@@ -299,17 +370,15 @@ BESSy.Json Error: 0 : Error!
                 LevelFilter = TraceLevel.Info
             };
 
-            ExceptionAssert.Throws<Exception>(
-                "Could not convert string to integer: hi. Path 'Integer', line 1, position 15.",
-                () =>
-                {
-                    JsonConvert.DeserializeObject<IntegerTestClass>(
-                        json,
-                        new JsonSerializerSettings
-                        {
-                            TraceWriter = traceWriter
-                        });
-                });
+            ExceptionAssert.Throws<Exception>(() =>
+            {
+                JsonConvert.DeserializeObject<IntegerTestClass>(
+                    json,
+                    new JsonSerializerSettings
+                    {
+                        TraceWriter = traceWriter
+                    });
+            }, "Could not convert string to integer: hi. Path 'Integer', line 1, position 15.");
 
             Assert.AreEqual(2, traceWriter.TraceRecords.Count);
 
@@ -330,17 +399,15 @@ BESSy.Json Error: 0 : Error!
                 LevelFilter = TraceLevel.Info
             };
 
-            ExceptionAssert.Throws<Exception>(
-                "Could not convert string to integer: two. Path 'IntList[1]', line 1, position 20.",
-                () =>
-                {
-                    JsonConvert.DeserializeObject<TraceTestObject>(
-                        json,
-                        new JsonSerializerSettings
-                        {
-                            TraceWriter = traceWriter
-                        });
-                });
+            ExceptionAssert.Throws<Exception>(() =>
+            {
+                JsonConvert.DeserializeObject<TraceTestObject>(
+                    json,
+                    new JsonSerializerSettings
+                    {
+                        TraceWriter = traceWriter
+                    });
+            }, "Could not convert string to integer: two. Path 'IntList[1]', line 1, position 20.");
 
             Assert.AreEqual(3, traceWriter.TraceRecords.Count);
 
@@ -403,7 +470,7 @@ BESSy.Json Error: 0 : Error!
                 new JsonSerializerSettings
                 {
                     PreserveReferencesHandling = PreserveReferencesHandling.All,
-                    SpecialPropertyHandling = SpecialPropertyHandling.Default,
+                    MetadataPropertyHandling = MetadataPropertyHandling.Default,
                     TraceWriter = traceWriter
                 });
 
@@ -523,7 +590,7 @@ BESSy.Json Error: 0 : Error!
             JsonConvert.DeserializeObject(json, null, new JsonSerializerSettings
             {
                 TypeNameHandling = TypeNameHandling.All,
-                SpecialPropertyHandling = SpecialPropertyHandling.Default,
+                MetadataPropertyHandling = MetadataPropertyHandling.Default,
                 TraceWriter = traceWriter
             });
 
@@ -533,13 +600,13 @@ BESSy.Json Error: 0 : Error!
             Assert.AreEqual("Started deserializing System.Collections.Generic.Dictionary`2[System.String,System.String]. Path '$values[0].key!', line 6, position 14.", traceWriter.TraceRecords[3].Message);
             Assert.IsTrue(traceWriter.TraceRecords[4].Message.StartsWith("Finished deserializing System.Collections.Generic.Dictionary`2[System.String,System.String]. Path '$values[0]'"));
             Assert.AreEqual("Resolved type 'System.Version, mscorlib' to System.Version. Path '$values[1].$type', line 9, position 42.", traceWriter.TraceRecords[5].Message);
-            Assert.AreEqual("Deserializing System.Version using a non-default constructor 'Void .ctor(Int32, Int32, Int32, Int32)'. Path '$values[1].Major', line 10, position 15.", traceWriter.TraceRecords[6].Message);
+            Assert.AreEqual("Deserializing System.Version using creator with parameters: Major, Minor, Build, Revision. Path '$values[1].Major', line 10, position 15.", traceWriter.TraceRecords[6].Message);
             Assert.IsTrue(traceWriter.TraceRecords[7].Message.StartsWith("Started deserializing System.Version. Path '$values[1]'"));
             Assert.IsTrue(traceWriter.TraceRecords[8].Message.StartsWith("Finished deserializing System.Version. Path '$values[1]'"));
             Assert.IsTrue(traceWriter.TraceRecords[9].Message.StartsWith("Finished deserializing System.Collections.Generic.List`1[System.Object]. Path '$values'"));
         }
 
-#if !(NETFX_CORE || PORTABLE || PORTABLE40)
+#if !(NETFX_CORE || PORTABLE || ASPNETCORE50 || PORTABLE40)
         [Test]
         public void DeserializeISerializable()
         {
@@ -548,17 +615,15 @@ BESSy.Json Error: 0 : Error!
                 LevelFilter = TraceLevel.Verbose
             };
 
-            ExceptionAssert.Throws<SerializationException>(
-                "Member 'ClassName' was not found.",
-                () =>
-                {
-                    JsonConvert.DeserializeObject<Exception>(
-                        "{}",
-                        new JsonSerializerSettings
-                        {
-                            TraceWriter = traceWriter
-                        });
-                });
+            ExceptionAssert.Throws<SerializationException>(() =>
+            {
+                JsonConvert.DeserializeObject<Exception>(
+                    "{}",
+                    new JsonSerializerSettings
+                    {
+                        TraceWriter = traceWriter
+                    });
+            }, "Member 'ClassName' was not found.");
 
             Assert.IsTrue(traceWriter.TraceRecords[0].Message.StartsWith("Deserializing System.Exception using ISerializable constructor. Path ''"));
             Assert.AreEqual(TraceLevel.Info, traceWriter.TraceRecords[0].Level);
@@ -610,10 +675,31 @@ BESSy.Json Error: 0 : Error!
                 TraceWriter = traceWriter
             });
 
-            Assert.AreEqual("Deserializing System.Version using a non-default constructor 'Void .ctor(Int32, Int32, Int32, Int32)'. Path 'Major', line 2, position 11.", traceWriter.TraceRecords[0].Message);
+            Assert.AreEqual("Deserializing System.Version using creator with parameters: Major, Minor, Build, Revision. Path 'Major', line 2, position 11.", traceWriter.TraceRecords[0].Message);
             Assert.AreEqual("Could not find member 'MissingMemberProperty' on System.Version. Path 'MissingMemberProperty', line 8, position 32.", traceWriter.TraceRecords[1].Message);
             Assert.IsTrue(traceWriter.TraceRecords[2].Message.StartsWith("Started deserializing System.Version. Path ''"));
             Assert.IsTrue(traceWriter.TraceRecords[3].Message.StartsWith("Finished deserializing System.Version. Path ''"));
+        }
+
+        [Test]
+        public void PublicParametizedConstructorWithPropertyNameConflictWithAttribute()
+        {
+            InMemoryTraceWriter traceWriter = new InMemoryTraceWriter
+            {
+                LevelFilter = TraceLevel.Verbose
+            };
+
+            string json = @"{name:""1""}";
+
+            PublicParametizedConstructorWithPropertyNameConflictWithAttribute c = JsonConvert.DeserializeObject<PublicParametizedConstructorWithPropertyNameConflictWithAttribute>(json, new JsonSerializerSettings
+            {
+                TraceWriter = traceWriter
+            });
+
+            Assert.IsNotNull(c);
+            Assert.AreEqual(1, c.Name);
+
+            Assert.AreEqual("Deserializing Newtonsoft.Json.Tests.TestObjects.PublicParametizedConstructorWithPropertyNameConflictWithAttribute using creator with parameters: name. Path 'name', line 1, position 6.", traceWriter.TraceRecords[0].Message);
         }
 
         [Test]
@@ -669,7 +755,7 @@ BESSy.Json Error: 0 : Error!
             Assert.AreEqual("IsSpecified result for property 'FavoriteNumber' on BESSy.Json.Tests.Serialization.SpecifiedTestClass: False. Path 'Age'.", traceWriter.TraceRecords[4].Message);
             Assert.AreEqual("Finished serializing BESSy.Json.Tests.Serialization.SpecifiedTestClass. Path ''.", traceWriter.TraceRecords[5].Message);
 
-            Assert.AreEqual(@"{
+            StringAssert.AreEqual(@"{
   ""Age"": 27
 }", json);
 
@@ -696,7 +782,7 @@ BESSy.Json Error: 0 : Error!
             c.FavoriteNumber = 23;
             json = JsonConvert.SerializeObject(c, Formatting.Indented);
 
-            Assert.AreEqual(@"{
+            StringAssert.AreEqual(@"{
   ""Name"": ""James"",
   ""Age"": 27,
   ""Weight"": 0,
@@ -726,7 +812,7 @@ BESSy.Json Error: 0 : Error!
             Assert.AreEqual(23, deserialized.FavoriteNumber);
         }
 
-#if !(NET20 || NET35 || PORTABLE || PORTABLE40)
+#if !(NET20 || NET35 || PORTABLE || ASPNETCORE50 || PORTABLE40)
         [Test]
         public void TraceJsonWriterTest()
         {
@@ -794,7 +880,7 @@ BESSy.Json Error: 0 : Error!
 
             Console.WriteLine(traceWriter.GetJson());
 
-            Assert.AreEqual(@"{
+            StringAssert.AreEqual(@"{
   ""Array"": [
     ""String!"",
     ""2000-12-12T12:12:12Z"",
@@ -955,7 +1041,7 @@ BESSy.Json Error: 0 : Error!
 
             Console.WriteLine(traceReader.GetJson());
 
-            Assert.AreEqual(json, traceReader.GetJson());
+            StringAssert.AreEqual(json, traceReader.GetJson());
         }
 #endif
     }

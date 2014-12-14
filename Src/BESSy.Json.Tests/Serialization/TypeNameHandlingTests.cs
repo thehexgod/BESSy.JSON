@@ -24,36 +24,106 @@
 #endregion
 
 #if !(PORTABLE || PORTABLE40)
-#if !(NET35 || NET20 || PORTABLE)
+using System.Collections.ObjectModel;
+#if !(NET35 || NET20)
 using System.Dynamic;
 #endif
 using System.Text;
 using BESSy.Json.Tests.Linq;
-using global::System;
-using global::System.Collections;
-using global::System.Collections.Generic;
-using global::System.Globalization;
-using global::System.Runtime.Serialization.Formatters;
+using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.Globalization;
+using System.Runtime.Serialization.Formatters;
 using global::BESSy.Json.Linq;
 using global::BESSy.Json.Serialization;
 using global::BESSy.Json.Tests.TestObjects;
-#if !NETFX_CORE
-using global::NUnit.Framework;
+#if NETFX_CORE
+using Microsoft.VisualStudio.TestPlatform.UnitTestFramework;
+using TestFixture = Microsoft.VisualStudio.TestPlatform.UnitTestFramework.TestClassAttribute;
+using Test = Microsoft.VisualStudio.TestPlatform.UnitTestFramework.TestMethodAttribute;
+#elif ASPNETCORE50
+using Xunit;
+using Test = Xunit.FactAttribute;
+using Assert = Newtonsoft.Json.Tests.XUnitAssert;
 #else
-using global::Microsoft.VisualStudio.TestPlatform.UnitTestFramework;
-using TestFixture = global::Microsoft.VisualStudio.TestPlatform.UnitTestFramework.TestClassAttribute;
-using Test = global::Microsoft.VisualStudio.TestPlatform.UnitTestFramework.TestMethodAttribute;
+using NUnit.Framework;
 #endif
 using global::BESSy.Json.Utilities;
-using global::System.Net;
-using global::System.Runtime.Serialization;
-using global::System.IO;
+using System.Net;
+using System.Runtime.Serialization;
+using System.IO;
 
 namespace BESSy.Json.Tests.Serialization
 {
     [TestFixture]
     public class TypeNameHandlingTests : TestFixtureBase
     {
+#if !(NET20 || NET35 || NET40)
+        public class KnownAutoTypes
+        {
+            public ICollection<string> Collection { get; set; }
+            public IList<string> List { get; set; }
+            public IDictionary<string, string> Dictionary { get; set; }
+            public ISet<string> Set { get; set; }
+            public IReadOnlyCollection<string> ReadOnlyCollection { get; set; }
+            public IReadOnlyList<string> ReadOnlyList { get; set; }
+            public IReadOnlyDictionary<string, string> ReadOnlyDictionary { get; set; }
+        }
+
+        [Test]
+        public void KnownAutoTypesTest()
+        {
+            KnownAutoTypes c = new KnownAutoTypes
+            {
+                Collection = new List<string> { "Collection value!" },
+                List = new List<string> { "List value!" },
+                Dictionary = new Dictionary<string, string>
+                {
+                    { "Dictionary key!", "Dictionary value!" }
+                },
+                ReadOnlyCollection = new ReadOnlyCollection<string>(new[] { "Read Only Collection value!" }),
+                ReadOnlyList = new ReadOnlyCollection<string>(new[] { "Read Only List value!" }),
+                Set = new HashSet<string> { "Set value!" },
+                ReadOnlyDictionary = new ReadOnlyDictionary<string, string>(new Dictionary<string, string>
+                {
+                    { "Read Only Dictionary key!", "Read Only Dictionary value!" }
+                })
+            };
+
+            string json = JsonConvert.SerializeObject(c, Formatting.Indented, new JsonSerializerSettings
+            {
+                TypeNameHandling = TypeNameHandling.Auto
+            });
+
+            Console.WriteLine(json);
+
+            StringAssert.AreEqual(@"{
+  ""Collection"": [
+    ""Collection value!""
+  ],
+  ""List"": [
+    ""List value!""
+  ],
+  ""Dictionary"": {
+    ""Dictionary key!"": ""Dictionary value!""
+  },
+  ""Set"": [
+    ""Set value!""
+  ],
+  ""ReadOnlyCollection"": [
+    ""Read Only Collection value!""
+  ],
+  ""ReadOnlyList"": [
+    ""Read Only List value!""
+  ],
+  ""ReadOnlyDictionary"": {
+    ""Read Only Dictionary key!"": ""Read Only Dictionary value!""
+  }
+}", json);
+        }
+#endif
+
         [Test]
         public void DictionaryAuto()
         {
@@ -67,7 +137,7 @@ namespace BESSy.Json.Tests.Serialization
                 TypeNameHandling = TypeNameHandling.Auto
             });
 
-            Assert.AreEqual(@"{
+            StringAssert.AreEqual(@"{
   ""movie"": {
     ""$type"": ""BESSy.Json.Tests.TestObjects.Movie, BESSy.Json.Tests"",
     ""Name"": ""Die Hard"",
@@ -93,7 +163,7 @@ namespace BESSy.Json.Tests.Serialization
                 TypeNameHandling = TypeNameHandling.Auto
             });
 
-            Assert.AreEqual(@"[
+            StringAssert.AreEqual(@"[
   {
     ""Key"": ""movie"",
     ""Value"": {
@@ -118,13 +188,13 @@ namespace BESSy.Json.Tests.Serialization
                 sb.Append(@"{""$value"":");
             }
 
-            ExceptionAssert.Throws<JsonSerializationException>("Unexpected token when deserializing primitive value: StartObject. Path '$value', line 1, position 11.", () =>
+            ExceptionAssert.Throws<JsonSerializationException>(() =>
             {
                 var reader = new JsonTextReader(new StringReader(sb.ToString()));
                 var ser = new JsonSerializer();
-                ser.SpecialPropertyHandling = SpecialPropertyHandling.Default;
+                ser.MetadataPropertyHandling = MetadataPropertyHandling.Default;
                 ser.Deserialize<bool>(reader);
-            });
+            }, "Unexpected token when deserializing primitive value: StartObject. Path '$value', line 1, position 11.");
         }
 
         [Test]
@@ -138,7 +208,7 @@ namespace BESSy.Json.Tests.Serialization
             serializer.Serialize(new JsonTextWriter(sw) { Formatting = Formatting.Indented }, new WagePerson(), typeof(Person));
             var result = sw.ToString();
 
-            Assert.AreEqual(@"{
+            StringAssert.AreEqual(@"{
   ""$type"": ""BESSy.Json.Tests.TestObjects.WagePerson, BESSy.Json.Tests"",
   ""HourlyWage"": 0.0,
   ""Name"": null,
@@ -163,7 +233,7 @@ namespace BESSy.Json.Tests.Serialization
                 TypeNameHandling = TypeNameHandling.Auto
             });
 
-            Assert.AreEqual(@"{
+            StringAssert.AreEqual(@"{
   ""$type"": ""BESSy.Json.Tests.TestObjects.WagePerson, BESSy.Json.Tests"",
   ""HourlyWage"": 0.0,
   ""Name"": null,
@@ -196,7 +266,7 @@ namespace BESSy.Json.Tests.Serialization
                 TypeNameHandling = TypeNameHandling.Auto
             });
 
-            Assert.AreEqual(@"{
+            StringAssert.AreEqual(@"{
   ""Array"": [
     {
       ""$id"": ""1"",
@@ -230,7 +300,7 @@ namespace BESSy.Json.Tests.Serialization
                 TypeNameHandling = TypeNameHandling.Objects
             });
 
-            Assert.AreEqual(@"{
+            StringAssert.AreEqual(@"{
   ""$id"": ""1"",
   ""$type"": """ + employeeRef + @""",
   ""Name"": null,
@@ -259,7 +329,7 @@ namespace BESSy.Json.Tests.Serialization
             Assert.AreEqual("Name!", ((EmployeeReference)employee).Name);
         }
 
-#if !(NETFX_CORE || PORTABLE)
+#if !(NETFX_CORE || PORTABLE || ASPNETCORE50)
         [Test]
         public void DeserializeTypeNameFromGacAssembly()
         {
@@ -308,7 +378,7 @@ namespace BESSy.Json.Tests.Serialization
                 TypeNameAssemblyFormat = FormatterAssemblyStyle.Full
             });
 
-            Assert.AreEqual(@"[
+            StringAssert.AreEqual(@"[
   {
     ""$id"": ""1"",
     ""$type"": """ + employeeRef + @""",
@@ -422,7 +492,7 @@ namespace BESSy.Json.Tests.Serialization
 
             JObject o = (JObject)JsonConvert.DeserializeObject(json);
 
-            Assert.AreEqual(@"{
+            StringAssert.AreEqual(@"{
   ""Name"": ""Name!"",
   ""Manager"": null
 }", o.ToString());
@@ -438,15 +508,14 @@ namespace BESSy.Json.Tests.Serialization
   ""Manager"": null
 }";
 
-            ExceptionAssert.Throws<JsonSerializationException>(
+            ExceptionAssert.Throws<JsonSerializationException>(() =>
                 "Type specified in JSON 'BESSy.Json.Tests.TestObjects.Employee' was not resolved. Path '$type', line 3, position 51.",
-                () =>
+            {
+                JsonConvert.DeserializeObject(json, null, new JsonSerializerSettings
                 {
-                    JsonConvert.DeserializeObject(json, null, new JsonSerializerSettings
-                    {
-                        TypeNameHandling = TypeNameHandling.Objects
-                    });
+                    TypeNameHandling = TypeNameHandling.Objects
                 });
+            }, "Type specified in JSON 'Newtonsoft.Json.Tests.TestObjects.Employee' was not resolved. Path '$type', line 3, position 56.");
         }
 
         public interface ICorrelatedMessage
@@ -525,7 +594,7 @@ namespace BESSy.Json.Tests.Serialization
                     TypeNameAssemblyFormat = FormatterAssemblyStyle.Full
                 });
 
-            Assert.AreEqual(@"{
+            StringAssert.AreEqual(@"{
   ""$type"": """ + containerTypeName + @""",
   ""In"": {
     ""$type"": """ + productListTypeName + @""",
@@ -562,7 +631,7 @@ namespace BESSy.Json.Tests.Serialization
 
             string json = JsonConvert.SerializeObject(typeNameProperty, Formatting.Indented);
 
-            Assert.AreEqual(@"{
+            StringAssert.AreEqual(@"{
   ""Name"": ""Name!"",
   ""Value"": {
     ""$type"": """ + typeNamePropertyRef + @""",
@@ -593,7 +662,7 @@ namespace BESSy.Json.Tests.Serialization
 
             string json = JsonConvert.SerializeObject(typeNameProperty, Formatting.Indented);
 
-            Assert.AreEqual(@"{
+            StringAssert.AreEqual(@"{
   ""Name"": ""Name!"",
   ""Value"": {
     ""$type"": """ + listRef + @""",
@@ -690,7 +759,7 @@ namespace BESSy.Json.Tests.Serialization
             //]
 
 
-            Assert.AreEqual(@"[
+            StringAssert.AreEqual(@"[
   {
     ""$type"": ""Customer"",
     ""Name"": ""Caroline Customer""
@@ -789,7 +858,7 @@ namespace BESSy.Json.Tests.Serialization
   }
 }";
 
-            Assert.AreEqual(expected, json);
+            StringAssert.AreEqual(expected, json);
 
             StringReader sr = new StringReader(json);
 
@@ -874,7 +943,7 @@ namespace BESSy.Json.Tests.Serialization
 
             string urlStatusTypeName = ReflectionUtils.GetTypeName(typeof(UrlStatus), FormatterAssemblyStyle.Simple, null);
 
-            Assert.AreEqual(@"{
+            StringAssert.AreEqual(@"{
   ""$type"": ""System.Collections.Generic.Dictionary`2[[System.String, mscorlib],[System.Object, mscorlib]], mscorlib"",
   ""First"": {
     ""$type"": """ + urlStatusTypeName + @""",
@@ -929,7 +998,7 @@ namespace BESSy.Json.Tests.Serialization
 
             string json = JsonConvert.SerializeObject(products, Formatting.Indented, new JsonSerializerSettings { TypeNameHandling = TypeNameHandling.All });
 
-            Assert.AreEqual(@"{
+            StringAssert.AreEqual(@"{
   ""$type"": """ + productClassRef + @""",
   ""$values"": []
 }", json);
@@ -1009,7 +1078,7 @@ namespace BESSy.Json.Tests.Serialization
 
             string carClassRef = ReflectionUtils.GetTypeName(typeof(Car), FormatterAssemblyStyle.Simple, null);
 
-            Assert.AreEqual(output, @"{
+            StringAssert.AreEqual(output, @"{
   ""$type"": """ + carClassRef + @""",
   ""Year"": ""2000-10-05T01:01:01Z"",
   ""Objects"": {
@@ -1033,7 +1102,7 @@ namespace BESSy.Json.Tests.Serialization
             CollectionAssert.AreEquivalent(data, d);
         }
 
-#if !(NETFX_CORE)
+#if !(NETFX_CORE || ASPNETCORE50)
         [Test]
         public void ISerializableTypeNameHandlingTest()
         {
@@ -1099,13 +1168,13 @@ namespace BESSy.Json.Tests.Serialization
                 Binder = new MetroBinder(),
                 ContractResolver = new DefaultContractResolver
                 {
-#if !(NETFX_CORE || PORTABLE)
+#if !(NETFX_CORE || PORTABLE || ASPNETCORE50)
                     IgnoreSerializableAttribute = true
 #endif
                 }
             });
 
-            Assert.AreEqual(@"{
+            StringAssert.AreEqual(@"{
   ""$type"": "":::MESSAGE:::, AssemblyName"",
   ""Address"": ""jamesnk@testtown.com"",
   ""Body"": {
@@ -1130,10 +1199,10 @@ namespace BESSy.Json.Tests.Serialization
             public override void BindToName(Type serializedType, out string assemblyName, out string typeName)
             {
                 assemblyName = "AssemblyName";
-#if !NETFX_CORE
+#if !(NETFX_CORE || ASPNETCORE50)
                 typeName = ":::" + serializedType.Name.ToUpper(CultureInfo.InvariantCulture) + ":::";
 #else
-        typeName = ":::" + serializedType.Name.ToUpper() + ":::";
+                typeName = ":::" + serializedType.Name.ToUpper() + ":::";
 #endif
             }
         }
@@ -1148,7 +1217,7 @@ namespace BESSy.Json.Tests.Serialization
             l.Add(3);
 
             string json = JsonConvert.SerializeObject(l, Formatting.Indented);
-            Assert.AreEqual(@"[
+            StringAssert.AreEqual(@"[
   1,
   2,
   3
@@ -1171,7 +1240,7 @@ namespace BESSy.Json.Tests.Serialization
             l.Add(long.MaxValue);
 
             string json = JsonConvert.SerializeObject(l, Formatting.Indented);
-            Assert.AreEqual(@"[
+            StringAssert.AreEqual(@"[
   {
     ""$type"": ""BESSy.Json.Tests.TestObjects.TestComponentSimple, BESSy.Json.Tests"",
     ""MyProperty"": 0
@@ -1206,7 +1275,7 @@ namespace BESSy.Json.Tests.Serialization
             l.Add("Third", long.MaxValue);
 
             string json = JsonConvert.SerializeObject(l, Formatting.Indented);
-            Assert.AreEqual(@"{
+            StringAssert.AreEqual(@"{
   ""First"": {
     ""$type"": ""BESSy.Json.Tests.TestObjects.TestComponentSimple, BESSy.Json.Tests"",
     ""MyProperty"": 1
@@ -1248,7 +1317,7 @@ namespace BESSy.Json.Tests.Serialization
   ""String"": ""String!"",
   ""Integer"": 2147483647
 }";
-            Assert.AreEqual(expected, json);
+            StringAssert.AreEqual(expected, json);
 
             TypeNameObject o2 = JsonConvert.DeserializeObject<TypeNameObject>(json);
             Assert.IsNotNull(o2);
@@ -1257,7 +1326,7 @@ namespace BESSy.Json.Tests.Serialization
             Assert.AreEqual(1, ((TestComponentSimple)o2.Object1).MyProperty);
             CustomAssert.IsInstanceOfType(typeof(long), o2.Object2);
             CustomAssert.IsInstanceOfType(typeof(JObject), o2.ObjectNotHandled);
-            Assert.AreEqual(@"{
+            StringAssert.AreEqual(@"{
   ""MyProperty"": 2147483647
 }", o2.ObjectNotHandled.ToString());
         }
@@ -1274,7 +1343,7 @@ namespace BESSy.Json.Tests.Serialization
             };
 
             string json = JsonConvert.SerializeObject(c1, Formatting.Indented);
-            Assert.AreEqual(@"{
+            StringAssert.AreEqual(@"{
   ""Data"": [
     1,
     ""two"",
@@ -1314,7 +1383,7 @@ namespace BESSy.Json.Tests.Serialization
             };
 
             string json = JsonConvert.SerializeObject(c1, Formatting.Indented);
-            Assert.AreEqual(@"{
+            StringAssert.AreEqual(@"{
   ""Data"": [
     {
       ""$type"": ""BESSy.Json.Tests.TestObjects.TestComponentSimple, BESSy.Json.Tests"",
@@ -1393,7 +1462,7 @@ namespace BESSy.Json.Tests.Serialization
             };
 
             string json = JsonConvert.SerializeObject(c1, Formatting.Indented);
-            Assert.AreEqual(@"{
+            StringAssert.AreEqual(@"{
   ""Data"": {
     ""one"": {
       ""$type"": ""BESSy.Json.Tests.TestObjects.TestComponentSimple, BESSy.Json.Tests"",
@@ -1468,7 +1537,7 @@ namespace BESSy.Json.Tests.Serialization
             };
 
             string json = JsonConvert.SerializeObject(o1, Formatting.Indented);
-            Assert.AreEqual(@"{
+            StringAssert.AreEqual(@"{
   ""Data"": {
     ""Prop1"": {
       ""$type"": ""System.Collections.Generic.List`1[[System.Object, mscorlib]], mscorlib"",
@@ -1524,7 +1593,7 @@ namespace BESSy.Json.Tests.Serialization
             d1.Data = (DynamicDictionary)data;
 
             string json = JsonConvert.SerializeObject(d1, Formatting.Indented);
-            Assert.AreEqual(@"{
+            StringAssert.AreEqual(@"{
   ""Data"": {
     ""one"": {
       ""$type"": ""BESSy.Json.Tests.TestObjects.TestComponentSimple, BESSy.Json.Tests"",
@@ -1575,7 +1644,7 @@ namespace BESSy.Json.Tests.Serialization
         }
 #endif
 
-#if !NETFX_CORE
+#if !(NETFX_CORE || ASPNETCORE50)
         [Test]
         public void SerializeDeserialize_DictionaryContextContainsGuid_DeserializesItemAsGuid()
         {
@@ -1622,7 +1691,7 @@ namespace BESSy.Json.Tests.Serialization
 
             string json = JsonConvert.SerializeObject(p, settings);
 
-            Assert.AreEqual(@"{
+            StringAssert.AreEqual(@"{
   ""c"": {
     ""$type"": ""BESSy.Json.Tests.Serialization.MyChild, BESSy.Json.Tests"",
     ""p"": ""string!""
@@ -1657,7 +1726,7 @@ namespace BESSy.Json.Tests.Serialization
 
             string json = JsonConvert.SerializeObject(p, settings);
 
-            Assert.AreEqual(@"{
+            StringAssert.AreEqual(@"{
   ""c"": {
     ""$type"": ""BESSy.Json.Tests.Serialization.MyChildList, BESSy.Json.Tests"",
     ""$values"": [
@@ -1696,7 +1765,7 @@ namespace BESSy.Json.Tests.Serialization
 
             string json = JsonConvert.SerializeObject(pp, settings);
 
-            Assert.AreEqual(@"{
+            StringAssert.AreEqual(@"{
   ""ParentProp"": {
     ""c"": {
       ""$type"": ""BESSy.Json.Tests.Serialization.MyChild, BESSy.Json.Tests"",
@@ -1740,9 +1809,37 @@ namespace BESSy.Json.Tests.Serialization
                 }
             }
         }
+
+#if !NET20
+        [Test]
+        public void ExistingBaseValue()
+        {
+            string json = @"{
+    ""itemIdentifier"": {
+        ""$type"": ""Newtonsoft.Json.Tests.Serialization.ReportItemKeys, Newtonsoft.Json.Tests"",
+        ""dataType"": 0,
+        ""wantedUnitID"": 1,
+        ""application"": 3,
+        ""id"": 101,
+        ""name"": ""Machine""
+    },
+    ""isBusinessEntity"": false,
+    ""isKeyItem"": true,
+    ""summarizeOnThisItem"": false
+}";
+
+            GroupingInfo g = JsonConvert.DeserializeObject<GroupingInfo>(json, new JsonSerializerSettings
+            {
+                TypeNameHandling = TypeNameHandling.Objects
+            });
+
+            ReportItemKeys item = (ReportItemKeys)g.ItemIdentifier;
+            Assert.AreEqual(1UL, item.WantedUnitID);
+        }
+#endif
     }
 
-#if !NETFX_CORE
+#if !(NETFX_CORE || ASPNETCORE50)
     public class ParentParent
     {
         [JsonProperty(ItemTypeNameHandling = TypeNameHandling.Auto)]
@@ -1810,7 +1907,7 @@ namespace BESSy.Json.Tests.Serialization
         public int Quantity { get; set; }
     }
 
-#if !(NETFX_CORE)
+#if !(NETFX_CORE || ASPNETCORE50)
     public class SerializableWrapper
     {
         public object Content { get; set; }
@@ -1941,6 +2038,42 @@ namespace BESSy.Json.Tests.Serialization
         public string String { get; set; }
         public int Integer { get; set; }
     }
+
+#if !NET20
+    [DataContract]
+    public class GroupingInfo
+    {
+        [DataMember]
+        public ApplicationItemKeys ItemIdentifier { get; set; }
+
+        public GroupingInfo()
+        {
+            ItemIdentifier = new ApplicationItemKeys();
+        }
+    }
+
+    [DataContract]
+    public class ApplicationItemKeys
+    {
+        [DataMember]
+        public int ID { get; set; }
+        [DataMember]
+        public string Name { get; set; }
+    }
+
+    [DataContract]
+    public class ReportItemKeys : ApplicationItemKeys
+    {
+        protected ulong _wantedUnit;
+
+        [DataMember]
+        public ulong WantedUnitID
+        {
+            get { return _wantedUnit; }
+            set { _wantedUnit = value; }
+        }
+    }
+#endif
 }
 
 #endif

@@ -3,8 +3,6 @@ using System.Collections.Generic;
 using System.Data;
 using System.Linq;
 using System.Text;
-using NUnit.Framework;
-
 namespace BESSy.Json.Tests.Documentation.Samples.Serializer
 {
     public class SerializeDataSet

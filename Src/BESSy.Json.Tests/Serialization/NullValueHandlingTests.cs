@@ -26,13 +26,16 @@
 using System;
 using System.IO;
 using BESSy.Json.Tests.TestObjects;
-#if !NETFX_CORE
-using NUnit.Framework;
-
-#else
+#if NETFX_CORE
 using Microsoft.VisualStudio.TestPlatform.UnitTestFramework;
 using TestFixture = Microsoft.VisualStudio.TestPlatform.UnitTestFramework.TestClassAttribute;
 using Test = Microsoft.VisualStudio.TestPlatform.UnitTestFramework.TestMethodAttribute;
+#elif ASPNETCORE50
+using Xunit;
+using Test = Xunit.FactAttribute;
+using Assert = Newtonsoft.Json.Tests.XUnitAssert;
+#else
+using NUnit.Framework;
 #endif
 
 namespace BESSy.Json.Tests.Serialization
@@ -110,7 +113,7 @@ namespace BESSy.Json.Tests.Serialization
             //   "Description": "It's no Bad Boys"
             // }
 
-            Assert.AreEqual(@"{
+            StringAssert.AreEqual(@"{
   ""Name"": ""Bad Boys III"",
   ""Description"": ""It's no Bad Boys"",
   ""Classification"": null,
@@ -119,7 +122,7 @@ namespace BESSy.Json.Tests.Serialization
   ""ReleaseCountries"": null
 }", included);
 
-            Assert.AreEqual(@"{
+            StringAssert.AreEqual(@"{
   ""Name"": ""Bad Boys III"",
   ""Description"": ""It's no Bad Boys""
 }", ignored);

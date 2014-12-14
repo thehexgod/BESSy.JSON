@@ -23,15 +23,19 @@
 // OTHER DEALINGS IN THE SOFTWARE.
 #endregion
 
+using System;
 using System.Reflection;
 using BESSy.Json.Tests.TestObjects;
-#if !NETFX_CORE
-using NUnit.Framework;
-
-#else
+#if NETFX_CORE
 using Microsoft.VisualStudio.TestPlatform.UnitTestFramework;
 using TestFixture = Microsoft.VisualStudio.TestPlatform.UnitTestFramework.TestClassAttribute;
 using Test = Microsoft.VisualStudio.TestPlatform.UnitTestFramework.TestMethodAttribute;
+#elif ASPNETCORE50
+using Xunit;
+using Test = Xunit.FactAttribute;
+using Assert = Newtonsoft.Json.Tests.XUnitAssert;
+#else
+using NUnit.Framework;
 #endif
 
 namespace BESSy.Json.Tests.Serialization
@@ -66,14 +70,12 @@ namespace BESSy.Json.Tests.Serialization
         [Test]
         public void FailWithPrivateConstructorPlusParametizedAndDefault()
         {
-            ExceptionAssert.Throws<TargetInvocationException>(
-                null,
-                () =>
-                {
-                    string json = @"{Name:""Name!""}";
+            ExceptionAssert.Throws<Exception>(() =>
+            {
+                string json = @"{Name:""Name!""}";
 
-                    PrivateConstructorWithPublicParametizedConstructorTestClass c = JsonConvert.DeserializeObject<PrivateConstructorWithPublicParametizedConstructorTestClass>(json);
-                });
+                PrivateConstructorWithPublicParametizedConstructorTestClass c = JsonConvert.DeserializeObject<PrivateConstructorWithPublicParametizedConstructorTestClass>(json);
+            });
         }
 
         [Test]

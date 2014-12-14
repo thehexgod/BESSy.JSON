@@ -559,7 +559,10 @@ namespace BESSy.Json
                         WriteRawValue((reader.Value != null) ? reader.Value.ToString() : null);
                         break;
                     case JsonToken.Bytes:
-                        WriteValue((byte[])reader.Value);
+                        if (reader.Value is Guid)
+                            WriteValue((Guid)reader.Value);
+                        else
+                            WriteValue((byte[])reader.Value);
                         break;
                     default:
                         throw MiscellaneousUtils.CreateArgumentOutOfRangeException("TokenType", reader.TokenType, "Unexpected token type.");
@@ -1193,9 +1196,9 @@ namespace BESSy.Json
         }
 
         /// <summary>
-        /// Writes a <see cref="T:Byte[]"/> value.
+        /// Writes a <see cref="Byte"/>[] value.
         /// </summary>
-        /// <param name="value">The <see cref="T:Byte[]"/> value to write.</param>
+        /// <param name="value">The <see cref="Byte"/>[] value to write.</param>
         public virtual void WriteValue(byte[] value)
         {
             if (value == null)
@@ -1236,7 +1239,7 @@ namespace BESSy.Json
                     throw CreateUnsupportedTypeException(this, value);
 #endif
 
-                WriteValue(this, ConvertUtils.GetTypeCode(value), value);
+                WriteValue(this, ConvertUtils.GetTypeCode(value.GetType()), value);
             }
         }
         #endregion

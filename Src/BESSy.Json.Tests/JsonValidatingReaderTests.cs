@@ -29,16 +29,20 @@ using System.IO;
 #if NET20
 using BESSy.Json.Utilities.LinqBridge;
 #endif
-#if !(NET20 || NET35 || PORTABLE)
+#if !(NET20 || NET35 || PORTABLE || ASPNETCORE50)
 using System.Numerics;
 #endif
 using System.Text;
-#if !NETFX_CORE
-using NUnit.Framework;
-#else
+#if NETFX_CORE
 using Microsoft.VisualStudio.TestPlatform.UnitTestFramework;
 using TestFixture = Microsoft.VisualStudio.TestPlatform.UnitTestFramework.TestClassAttribute;
 using Test = Microsoft.VisualStudio.TestPlatform.UnitTestFramework.TestMethodAttribute;
+#elif ASPNETCORE50
+using Xunit;
+using Test = Xunit.FactAttribute;
+using Assert = Newtonsoft.Json.Tests.XUnitAssert;
+#else
+using NUnit.Framework;
 #endif
 using System.Xml;
 using System.Xml.Schema;
@@ -352,7 +356,7 @@ namespace BESSy.Json.Tests
             Assert.IsNotNull(validationEventArgs);
         }
 
-#if !(NET20 || NET35 || PORTABLE || PORTABLE40)
+#if !(NET20 || NET35 || PORTABLE || ASPNETCORE50 || PORTABLE40)
         [Test]
         public void IntegerGreaterThanMaximumValue_BigInteger()
         {
@@ -400,19 +404,18 @@ namespace BESSy.Json.Tests
         [Test]
         public void ThrowExceptionWhenNoValidationEventHandler()
         {
-            ExceptionAssert.Throws<JsonSchemaException>("Integer 10 exceeds maximum value of 5. Line 1, position 2.",
-                () =>
-                {
-                    string schemaJson = @"{
+            ExceptionAssert.Throws<JsonSchemaException>(() =>
+            {
+                string schemaJson = @"{
   ""type"":""integer"",
   ""maximum"":5
 }";
 
-                    JsonValidatingReader reader = new JsonValidatingReader(new JsonTextReader(new StringReader("10")));
-                    reader.Schema = JsonSchema.Parse(schemaJson);
+                JsonValidatingReader reader = new JsonValidatingReader(new JsonTextReader(new StringReader("10")));
+                reader.Schema = JsonSchema.Parse(schemaJson);
 
-                    Assert.IsTrue(reader.Read());
-                });
+                Assert.IsTrue(reader.Read());
+            }, "Integer 10 exceeds maximum value of 5. Line 1, position 2.");
         }
 
         [Test]
@@ -606,7 +609,7 @@ namespace BESSy.Json.Tests
             Assert.IsNotNull(validationEventArgs);
         }
 
-#if !(NET20 || NET35 || PORTABLE || PORTABLE40)
+#if !(NET20 || NET35 || PORTABLE || ASPNETCORE50 || PORTABLE40)
         [Test]
         public void BigIntegerDivisibleBy_Success()
         {
@@ -1621,18 +1624,17 @@ namespace BESSy.Json.Tests
         [Test]
         public void ReadAsInt32Failure()
         {
-            ExceptionAssert.Throws<JsonSchemaException>("Integer 5 exceeds maximum value of 2. Line 1, position 1.",
-                () =>
-                {
-                    JsonSchema s = new JsonSchemaGenerator().Generate(typeof(int));
-                    s.Maximum = 2;
+            ExceptionAssert.Throws<JsonSchemaException>(() =>
+            {
+                JsonSchema s = new JsonSchemaGenerator().Generate(typeof(int));
+                s.Maximum = 2;
 
-                    JsonReader reader = new JsonValidatingReader(new JsonTextReader(new StringReader(@"5")))
-                    {
-                        Schema = s
-                    };
-                    reader.ReadAsInt32();
-                });
+                JsonReader reader = new JsonValidatingReader(new JsonTextReader(new StringReader(@"5")))
+                {
+                    Schema = s
+                };
+                reader.ReadAsInt32();
+            }, "Integer 5 exceeds maximum value of 2. Line 1, position 1.");
         }
 
         [Test]
@@ -1652,18 +1654,17 @@ namespace BESSy.Json.Tests
         [Test]
         public void ReadAsDecimalFailure()
         {
-            ExceptionAssert.Throws<JsonSchemaException>("Float 5.5 is not evenly divisible by 1. Line 1, position 3.",
-                () =>
-                {
-                    JsonSchema s = new JsonSchemaGenerator().Generate(typeof(decimal));
-                    s.DivisibleBy = 1;
+            ExceptionAssert.Throws<JsonSchemaException>(() =>
+            {
+                JsonSchema s = new JsonSchemaGenerator().Generate(typeof(decimal));
+                s.DivisibleBy = 1;
 
-                    JsonReader reader = new JsonValidatingReader(new JsonTextReader(new StringReader(@"5.5")))
-                    {
-                        Schema = s
-                    };
-                    reader.ReadAsDecimal();
-                });
+                JsonReader reader = new JsonValidatingReader(new JsonTextReader(new StringReader(@"5.5")))
+                {
+                    Schema = s
+                };
+                reader.ReadAsDecimal();
+            }, "Float 5.5 is not evenly divisible by 1. Line 1, position 3.");
         }
 
         [Test]

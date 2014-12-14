@@ -23,6 +23,7 @@
 // OTHER DEALINGS IN THE SOFTWARE.
 #endregion
 
+#if !(ASPNETCORE50 || NETFX_CORE || PORTABLE40 || PORTABLE40)
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
@@ -64,7 +65,7 @@ namespace BESSy.Json.Tests.LinqToSql
 
             string json = JsonConvert.SerializeObject(person, Formatting.Indented, new JsonSerializerSettings { ReferenceLoopHandling = ReferenceLoopHandling.Ignore });
 
-            Assert.AreEqual(@"{
+            StringAssert.AreEqual(@"{
   ""first_name"": ""FirstName!"",
   ""LastName"": ""LastName!"",
   ""PersonId"": ""7aa027aa-c995-4986-908d-999d8063599f"",
@@ -133,3 +134,4 @@ namespace BESSy.Json.Tests.LinqToSql
         }
     }
 }
+#endif

@@ -30,12 +30,16 @@ using System.Numerics;
 #endif
 using BESSy.Json.Linq.JsonPath;
 using BESSy.Json.Tests.Bson;
-#if !NETFX_CORE
-using NUnit.Framework;
-#else
+#if NETFX_CORE
 using Microsoft.VisualStudio.TestPlatform.UnitTestFramework;
 using TestFixture = Microsoft.VisualStudio.TestPlatform.UnitTestFramework.TestClassAttribute;
 using Test = Microsoft.VisualStudio.TestPlatform.UnitTestFramework.TestMethodAttribute;
+#elif ASPNETCORE50
+using Xunit;
+using Test = Xunit.FactAttribute;
+using Assert = Newtonsoft.Json.Tests.XUnitAssert;
+#else
+using NUnit.Framework;
 #endif
 using BESSy.Json.Linq;
 #if NET20
@@ -50,6 +54,79 @@ namespace BESSy.Json.Tests.Linq.JsonPath
     [TestFixture]
     public class JPathExecuteTests : TestFixtureBase
     {
+        [Test]
+        public void ParseWithEmptyArrayContent()
+        {
+            var json = @"{
+    'controls': [
+        {
+            'messages': {
+                'addSuggestion': {
+                    'en-US': 'Add'
+                }
+            }
+        },
+        {
+            'header': {
+                'controls': []
+            },
+            'controls': [
+                {
+                    'controls': [
+                        {
+                            'defaultCaption': {
+                                'en-US': 'Sort by'
+                            },
+                            'sortOptions': [
+                                {
+                                    'label': {
+                                        'en-US': 'Name'
+                                    }
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}";
+            JObject jToken = JObject.Parse(json);
+            IList<JToken> tokens = jToken.SelectTokens("$..en-US").ToList();
+
+            Assert.AreEqual(3, tokens.Count);
+            Assert.AreEqual("Add", (string)tokens[0]);
+            Assert.AreEqual("Sort by", (string)tokens[1]);
+            Assert.AreEqual("Name", (string)tokens[2]);
+        }
+
+        [Test]
+        public void SelectTokenAfterEmptyContainer()
+        {
+            string json = @"{
+    'cont': [],
+    'test': 'no one will find me'
+}";
+
+            JObject o = JObject.Parse(json);
+
+            IList<JToken> results = o.SelectTokens("$..test").ToList();
+
+            Assert.AreEqual(1, results.Count);
+            Assert.AreEqual("no one will find me", (string)results[0]);
+        }
+
+        [Test]
+        public void EvaluatePropertyWithRequired()
+        {
+            string json = "{\"bookId\":\"1000\"}";
+            JObject o = JObject.Parse(json);
+
+            string bookId = (string)o.SelectToken("bookId", true);
+
+            Assert.AreEqual("1000", bookId);
+        }
+
         [Test]
         public void EvaluateEmptyPropertyIndexer()
         {
@@ -177,9 +254,7 @@ namespace BESSy.Json.Tests.Linq.JsonPath
             JObject o = new JObject(
                 new JProperty("Blah", 1));
 
-            ExceptionAssert.Throws<JsonException>(
-                @"Index 1 not valid on JObject.",
-                () => { o.SelectToken("[1]", true); });
+            ExceptionAssert.Throws<JsonException>(() => { o.SelectToken("[1]", true); }, @"Index 1 not valid on JObject.");
         }
 
         [Test]
@@ -188,9 +263,7 @@ namespace BESSy.Json.Tests.Linq.JsonPath
             JObject o = new JObject(
                 new JProperty("Blah", 1));
 
-            ExceptionAssert.Throws<JsonException>(
-                @"Index * not valid on JObject.",
-                () => { o.SelectToken("[*]", true); });
+            ExceptionAssert.Throws<JsonException>(() => { o.SelectToken("[*]", true); }, @"Index * not valid on JObject.");
         }
 
         [Test]
@@ -199,9 +272,7 @@ namespace BESSy.Json.Tests.Linq.JsonPath
             JObject o = new JObject(
                 new JProperty("Blah", 1));
 
-            ExceptionAssert.Throws<JsonException>(
-                @"Array slice is not valid on JObject.",
-                () => { o.SelectToken("[:]", true); });
+            ExceptionAssert.Throws<JsonException>(() => { o.SelectToken("[:]", true); }, @"Array slice is not valid on JObject.");
         }
 
         [Test]
@@ -218,9 +289,7 @@ namespace BESSy.Json.Tests.Linq.JsonPath
         {
             JArray a = new JArray(1, 2, 3, 4, 5);
 
-            ExceptionAssert.Throws<JsonException>(
-                @"Path returned multiple tokens.",
-                () => { a.SelectToken("[0, 1]"); });
+            ExceptionAssert.Throws<JsonException>(() => { a.SelectToken("[0, 1]"); }, @"Path returned multiple tokens.");
         }
 
         [Test]
@@ -228,9 +297,7 @@ namespace BESSy.Json.Tests.Linq.JsonPath
         {
             JArray a = new JArray(1, 2, 3, 4, 5);
 
-            ExceptionAssert.Throws<JsonException>(
-                @"Property 'BlahBlah' not valid on JArray.",
-                () => { a.SelectToken("BlahBlah", true); });
+            ExceptionAssert.Throws<JsonException>(() => { a.SelectToken("BlahBlah", true); }, @"Property 'BlahBlah' not valid on JArray.");
         }
 
         [Test]
@@ -238,9 +305,7 @@ namespace BESSy.Json.Tests.Linq.JsonPath
         {
             JArray a = new JArray(1, 2, 3, 4, 5);
 
-            ExceptionAssert.Throws<JsonException>(
-                @"Index 9 outside the bounds of JArray.",
-                () => { a.SelectToken("[9,10]", true); });
+            ExceptionAssert.Throws<JsonException>(() => { a.SelectToken("[9,10]", true); }, @"Index 9 outside the bounds of JArray.");
         }
 
         [Test]
@@ -248,9 +313,7 @@ namespace BESSy.Json.Tests.Linq.JsonPath
         {
             JConstructor c = new JConstructor("Blah");
 
-            ExceptionAssert.Throws<JsonException>(
-                @"Index 1 outside the bounds of JConstructor.",
-                () => { c.SelectToken("[1]", true); });
+            ExceptionAssert.Throws<JsonException>(() => { c.SelectToken("[1]", true); }, @"Index 1 outside the bounds of JConstructor.");
         }
 
         [Test]
@@ -267,9 +330,7 @@ namespace BESSy.Json.Tests.Linq.JsonPath
             JObject o = new JObject(
                 new JProperty("Blah", 1));
 
-            ExceptionAssert.Throws<JsonException>(
-                "Property 'Missing' does not exist on JObject.",
-                () => { o.SelectToken("Missing", true); });
+            ExceptionAssert.Throws<JsonException>(() => { o.SelectToken("Missing", true); }, "Property 'Missing' does not exist on JObject.");
         }
 
         [Test]
@@ -279,7 +340,7 @@ namespace BESSy.Json.Tests.Linq.JsonPath
                 new JProperty("Blah", 1));
 
             JValue v = (JValue)o.SelectToken("Blah", true);
-            Assert.AreEqual(1L, v.Value);
+            Assert.AreEqual(1, v.Value);
         }
 
         [Test]
@@ -288,9 +349,7 @@ namespace BESSy.Json.Tests.Linq.JsonPath
             JObject o = new JObject(
                 new JProperty("Blah", 1));
 
-            ExceptionAssert.Throws<JsonException>(
-                "Property 'Missing' does not exist on JObject.",
-                () => { o.SelectToken("['Missing','Missing2']", true); });
+            ExceptionAssert.Throws<JsonException>(() => { o.SelectToken("['Missing','Missing2']", true); }, "Property 'Missing' does not exist on JObject.");
         }
 
         [Test]
@@ -298,9 +357,7 @@ namespace BESSy.Json.Tests.Linq.JsonPath
         {
             JArray a = new JArray(1, 2, 3, 4, 5);
 
-            ExceptionAssert.Throws<JsonException>(
-                "Properties 'Missing', 'Missing2' not valid on JArray.",
-                () => { a.SelectToken("['Missing','Missing2']", true); });
+            ExceptionAssert.Throws<JsonException>(() => { a.SelectToken("['Missing','Missing2']", true); }, "Properties 'Missing', 'Missing2' not valid on JArray.");
         }
 
         [Test]
@@ -308,23 +365,15 @@ namespace BESSy.Json.Tests.Linq.JsonPath
         {
             JArray a = new JArray(1, 2, 3, 4, 5);
 
-            ExceptionAssert.Throws<JsonException>(
-                "Array slice of 99 to * returned no results.",
-                () => { a.SelectToken("[99:]", true); });
+            ExceptionAssert.Throws<JsonException>(() => { a.SelectToken("[99:]", true); }, "Array slice of 99 to * returned no results.");
 
-            ExceptionAssert.Throws<JsonException>(
-                "Array slice of 1 to -19 returned no results.",
-                () => { a.SelectToken("[1:-19]", true); });
+            ExceptionAssert.Throws<JsonException>(() => { a.SelectToken("[1:-19]", true); }, "Array slice of 1 to -19 returned no results.");
 
-            ExceptionAssert.Throws<JsonException>(
-                "Array slice of * to -19 returned no results.",
-                () => { a.SelectToken("[:-19]", true); });
+            ExceptionAssert.Throws<JsonException>(() => { a.SelectToken("[:-19]", true); }, "Array slice of * to -19 returned no results.");
 
             a = new JArray();
 
-            ExceptionAssert.Throws<JsonException>(
-                "Array slice of * to * returned no results.",
-                () => { a.SelectToken("[:]", true); });
+            ExceptionAssert.Throws<JsonException>(() => { a.SelectToken("[:]", true); }, "Array slice of * to * returned no results.");
         }
 
         [Test]
@@ -341,9 +390,7 @@ namespace BESSy.Json.Tests.Linq.JsonPath
         {
             JArray a = new JArray(1, 2, 3, 4, 5);
 
-            ExceptionAssert.Throws<JsonException>(
-                "Index 1000 outside the bounds of JArray.",
-                () => { a.SelectToken("[1000].Ha", true); });
+            ExceptionAssert.Throws<JsonException>(() => { a.SelectToken("[1000].Ha", true); }, "Index 1000 outside the bounds of JArray.");
         }
 
         [Test]
@@ -604,7 +651,7 @@ namespace BESSy.Json.Tests.Linq.JsonPath
             Assert.IsTrue(JToken.DeepEquals(new JObject(new JProperty("hi", 3)), t[1]));
         }
 
-#if !(PORTABLE || PORTABLE40 || NET35 || NET20)
+#if !(PORTABLE || ASPNETCORE50 || PORTABLE40 || NET35 || NET20)
         [Test]
         public void GreaterQueryBigInteger()
         {

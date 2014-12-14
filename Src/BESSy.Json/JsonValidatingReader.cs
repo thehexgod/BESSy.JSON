@@ -57,7 +57,6 @@ namespace BESSy.Json
             public string CurrentPropertyName { get; set; }
             public int ArrayItemCount { get; set; }
             public bool IsUniqueArray { get; set; }
-            public bool IsEnum { get; set; }
             public IList<JToken> UniqueArrayItems { get; set; }
             public JTokenWriter CurrentItemWriter { get; set; }
 
@@ -373,10 +372,10 @@ namespace BESSy.Json
         }
 
         /// <summary>
-        /// Reads the next JSON token from the stream as a <see cref="T:Byte[]"/>.
+        /// Reads the next JSON token from the stream as a <see cref="Byte"/>[].
         /// </summary>
         /// <returns>
-        /// A <see cref="T:Byte[]"/> or a null reference if the next JSON token is null.
+        /// A <see cref="Byte"/>[] or a null reference if the next JSON token is null.
         /// </returns>
         public override byte[] ReadAsBytes()
         {
@@ -575,7 +574,7 @@ namespace BESSy.Json
             {
                 bool isInUniqueArray = (schemaScope.TokenType == JTokenType.Array && schemaScope.IsUniqueArray && schemaScope.ArrayItemCount > 0);
 
-                if (isInUniqueArray || schemaScope.IsEnum || schemas.Any(s => s.Enum != null))
+                if (isInUniqueArray || schemas.Any(s => s.Enum != null))
                 {
                     if (schemaScope.CurrentItemWriter == null)
                     {
@@ -602,7 +601,7 @@ namespace BESSy.Json
 
                             schemaScope.UniqueArrayItems.Add(finishedItem);
                         }
-                        else if (schemaScope.IsEnum || schemas.Any(s => s.Enum != null))
+                        else if (schemas.Any(s => s.Enum != null))
                         {
                             foreach (JsonSchemaModel schema in schemas)
                             {

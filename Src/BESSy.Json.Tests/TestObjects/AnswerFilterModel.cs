@@ -33,7 +33,7 @@ using System.Linq;
 
 namespace BESSy.Json.Tests.TestObjects
 {
-#if !(NETFX_CORE || PORTABLE)
+#if !(NETFX_CORE || PORTABLE || ASPNETCORE50)
     [Serializable]
     public class AnswerFilterModel
     {

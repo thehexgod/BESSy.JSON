@@ -83,6 +83,12 @@ namespace BESSy.Json.Serialization
         }
     }
 
+    internal class DefaultContractResolverState
+    {
+        public Dictionary<ResolverContractKey, JsonContract> ContractCache;
+        public PropertyNameTable NameTable = new PropertyNameTable();
+    }
+
     /// <summary>
     /// Used by <see cref="JsonSerializer"/> to resolves a <see cref="JsonContract"/> for a given <see cref="Type"/>.
     /// </summary>
@@ -95,7 +101,7 @@ namespace BESSy.Json.Serialization
             get { return _instance; }
         }
 
-        private static readonly IList<JsonConverter> BuiltInConverters = new List<JsonConverter>
+        private static readonly JsonConverter[] BuiltInConverters =
         {
 #if !(NET20 || NETFX_CORE || PORTABLE40 || PORTABLE)
             new EntityKeyMemberConverter(),
@@ -122,10 +128,10 @@ namespace BESSy.Json.Serialization
             new RegexConverter()
         };
 
-        private static Dictionary<ResolverContractKey, JsonContract> _sharedContractCache;
-        private static readonly object _typeContractCacheLock = new object();
+        private static readonly object TypeContractCacheLock = new object();
 
-        private Dictionary<ResolverContractKey, JsonContract> _instanceContractCache;
+        private static readonly DefaultContractResolverState _sharedState = new DefaultContractResolverState();
+        private readonly DefaultContractResolverState _instanceState = new DefaultContractResolverState();
         private readonly bool _sharedCache;
 
         /// <summary>
@@ -190,9 +196,9 @@ namespace BESSy.Json.Serialization
         /// </summary>
         /// <param name="shareCache">
         /// If set to <c>true</c> the <see cref="DefaultContractResolver"/> will use a cached shared with other resolvers of the same type.
-        /// Sharing the cache will significantly performance because expensive reflection will only happen once but could cause unexpected
-        /// behavior if different instances of the resolver are suppose to produce different results. When set to false it is highly
-        /// recommended to reuse <see cref="DefaultContractResolver"/> instances with the <see cref="JsonSerializer"/>.
+        /// Sharing the cache will significantly improve performance with multiple resolver instances because expensive reflection will only
+        /// happen once. This setting can cause unexpected behavior if different instances of the resolver are suppose to produce different
+        /// results. When set to false it is highly recommended to reuse <see cref="DefaultContractResolver"/> instances with the <see cref="JsonSerializer"/>.
         /// </param>
         public DefaultContractResolver(bool shareCache)
         {
@@ -208,20 +214,12 @@ namespace BESSy.Json.Serialization
             _sharedCache = shareCache;
         }
 
-        private Dictionary<ResolverContractKey, JsonContract> GetCache()
+        internal DefaultContractResolverState GetState()
         {
             if (_sharedCache)
-                return _sharedContractCache;
+                return _sharedState;
             else
-                return _instanceContractCache;
-        }
-
-        private void UpdateCache(Dictionary<ResolverContractKey, JsonContract> cache)
-        {
-            if (_sharedCache)
-                _sharedContractCache = cache;
-            else
-                _instanceContractCache = cache;
+                return _instanceState;
         }
 
         /// <summary>
@@ -234,24 +232,25 @@ namespace BESSy.Json.Serialization
             if (type == null)
                 throw new ArgumentNullException("type");
 
+            DefaultContractResolverState state = GetState();
+
             JsonContract contract;
             ResolverContractKey key = new ResolverContractKey(GetType(), type);
-            Dictionary<ResolverContractKey, JsonContract> cache = GetCache();
+            Dictionary<ResolverContractKey, JsonContract> cache = state.ContractCache;
             if (cache == null || !cache.TryGetValue(key, out contract))
             {
                 contract = CreateContract(type);
 
                 // avoid the possibility of modifying the cache dictionary while another thread is accessing it
-                lock (_typeContractCacheLock)
+                lock (TypeContractCacheLock)
                 {
-                    cache = GetCache();
-                    Dictionary<ResolverContractKey, JsonContract> updatedCache =
-                        (cache != null)
-                            ? new Dictionary<ResolverContractKey, JsonContract>(cache)
-                            : new Dictionary<ResolverContractKey, JsonContract>();
+                    cache = state.ContractCache;
+                    Dictionary<ResolverContractKey, JsonContract> updatedCache = (cache != null)
+                        ? new Dictionary<ResolverContractKey, JsonContract>(cache)
+                        : new Dictionary<ResolverContractKey, JsonContract>();
                     updatedCache[key] = contract;
 
-                    UpdateCache(updatedCache);
+                    state.ContractCache = updatedCache;
                 }
             }
 
@@ -371,34 +370,41 @@ namespace BESSy.Json.Serialization
             contract.MemberSerialization = JsonTypeReflector.GetObjectMemberSerialization(contract.NonNullableUnderlyingType, ignoreSerializableAttribute);
             contract.Properties.AddRange(CreateProperties(contract.NonNullableUnderlyingType, contract.MemberSerialization));
 
-            JsonObjectAttribute attribute = JsonTypeReflector.GetJsonObjectAttribute(contract.NonNullableUnderlyingType);
+            JsonObjectAttribute attribute = JsonTypeReflector.GetCachedAttribute<JsonObjectAttribute>(contract.NonNullableUnderlyingType);
             if (attribute != null)
                 contract.ItemRequired = attribute._itemRequired;
 
-            ConstructorInfo overrideConstructor = GetAttributeConstructor(contract.NonNullableUnderlyingType);
+            if (contract.IsInstantiable)
+            {
+                ConstructorInfo overrideConstructor = GetAttributeConstructor(contract.NonNullableUnderlyingType);
 
-            // check if a JsonConstructorAttribute has been defined and use that
-            if (overrideConstructor != null)
-            {
-                contract.OverrideConstructor = overrideConstructor;
-                contract.ConstructorParameters.AddRange(CreateConstructorParameters(overrideConstructor, contract.Properties));
-            }
-            else if (contract.MemberSerialization == MemberSerialization.Fields)
-            {
-#if !(NETFX_CORE || PORTABLE40 || PORTABLE)
-                // mimic DataContractSerializer behaviour when populating fields by overriding default creator to create an uninitialized object
-                // note that this is only possible when the application is fully trusted so fall back to using the default constructor (if available) in partial trust
-                if (JsonTypeReflector.FullyTrusted)
-                    contract.DefaultCreator = contract.GetUninitializedObject;
-#endif
-            }
-            else if (contract.DefaultCreator == null || contract.DefaultCreatorNonPublic)
-            {
-                ConstructorInfo constructor = GetParametrizedConstructor(contract.NonNullableUnderlyingType);
-                if (constructor != null)
+                // check if a JsonConstructorAttribute has been defined and use that
+                if (overrideConstructor != null)
                 {
-                    contract.ParametrizedConstructor = constructor;
-                    contract.ConstructorParameters.AddRange(CreateConstructorParameters(constructor, contract.Properties));
+#pragma warning disable 618
+                    contract.OverrideConstructor = overrideConstructor;
+#pragma warning restore 618
+                    contract.CreatorParameters.AddRange(CreateConstructorParameters(overrideConstructor, contract.Properties));
+                }
+                else if (contract.MemberSerialization == MemberSerialization.Fields)
+                {
+#if !(NETFX_CORE || PORTABLE40 || PORTABLE)
+                    // mimic DataContractSerializer behaviour when populating fields by overriding default creator to create an uninitialized object
+                    // note that this is only possible when the application is fully trusted so fall back to using the default constructor (if available) in partial trust
+                    if (JsonTypeReflector.FullyTrusted)
+                        contract.DefaultCreator = contract.GetUninitializedObject;
+#endif
+                }
+                else if (contract.DefaultCreator == null || contract.DefaultCreatorNonPublic)
+                {
+                    ConstructorInfo constructor = GetParametrizedConstructor(contract.NonNullableUnderlyingType);
+                    if (constructor != null)
+                    {
+#pragma warning disable 618
+                        contract.ParametrizedConstructor = constructor;
+#pragma warning restore 618
+                        contract.CreatorParameters.AddRange(CreateConstructorParameters(constructor, contract.Properties));
+                    }
                 }
             }
 
@@ -463,14 +469,18 @@ namespace BESSy.Json.Serialization
             Type valueType = dictionaryType.GetGenericArguments()[1];
             bool isJTokenValueType = typeof(JToken).IsAssignableFrom(valueType);
 
+            Type createdType;
+
             // change type to a class if it is the base interface so it can be instantiated if needed
             if (ReflectionUtils.IsGenericDefinition(t, typeof(IDictionary<,>)))
-                t = typeof(Dictionary<,>).MakeGenericType(keyType, valueType);
+                createdType = typeof(Dictionary<,>).MakeGenericType(keyType, valueType);
+            else
+                createdType = t;
 
             MethodInfo addMethod = t.GetMethod("Add", new[] { keyType, valueType });
             Func<object, object> getExtensionDataDictionary = JsonTypeReflector.ReflectionDelegateFactory.CreateGet<object>(member);
             Action<object, object> setExtensionDataDictionary = JsonTypeReflector.ReflectionDelegateFactory.CreateSet<object>(member);
-            Func<object> createExtensionDataDictionary = JsonTypeReflector.ReflectionDelegateFactory.CreateDefaultConstructor<object>(t);
+            Func<object> createExtensionDataDictionary = JsonTypeReflector.ReflectionDelegateFactory.CreateDefaultConstructor<object>(createdType);
             MethodCall<object, object> setExtensionDataDictionaryValue = JsonTypeReflector.ReflectionDelegateFactory.CreateMethodCall<object>(addMethod);
 
             ExtensionDataSetter extensionDataSetter = (o, key, value) =>
@@ -485,14 +495,14 @@ namespace BESSy.Json.Serialization
                 // convert object value to JToken so it is compatible with dictionary
                 // could happen because of primitive types, type name handling and references
                 if (isJTokenValueType && !(value is JToken))
-                    value = (value != null) ? JToken.FromObject(value) : new JValue(null, JTokenType.Null);
+                    value = (value != null) ? JToken.FromObject(value) : JValue.CreateNull();
 
                 setExtensionDataDictionaryValue(dictionary, key, value);
             };
 
             Type enumerableWrapper = typeof(DictionaryEnumerator<,>).MakeGenericType(keyType, valueType);
             ConstructorInfo constructors = enumerableWrapper.GetConstructors().First();
-            MethodCall<object, object> createEnumerableWrapper = JsonTypeReflector.ReflectionDelegateFactory.CreateMethodCall<object>(constructors);
+            ObjectConstructor<object> createEnumerableWrapper = JsonTypeReflector.ReflectionDelegateFactory.CreateParametrizedConstructor(constructors);
 
             ExtensionDataGetter extensionDataGetter = o =>
             {
@@ -500,7 +510,7 @@ namespace BESSy.Json.Serialization
                 if (dictionary == null)
                     return null;
 
-                return (IEnumerable<KeyValuePair<object, object>>)createEnumerableWrapper(null, dictionary);
+                return (IEnumerable<KeyValuePair<object, object>>)createEnumerableWrapper(dictionary);
             };
 
             if (extensionDataAttribute.ReadData)
@@ -666,7 +676,7 @@ namespace BESSy.Json.Serialization
         /// <returns>The contract's default <see cref="JsonConverter" />.</returns>
         protected virtual JsonConverter ResolveContractConverter(Type objectType)
         {
-            return JsonTypeReflector.GetJsonConverter(objectType, objectType);
+            return JsonTypeReflector.GetJsonConverter(objectType);
         }
 
         private Func<object> GetDefaultCreator(Type createdType)
@@ -679,7 +689,7 @@ namespace BESSy.Json.Serialization
 #endif
         private void InitializeContract(JsonContract contract)
         {
-            JsonContainerAttribute containerAttribute = JsonTypeReflector.GetJsonContainerAttribute(contract.NonNullableUnderlyingType);
+            JsonContainerAttribute containerAttribute = JsonTypeReflector.GetCachedAttribute<JsonContainerAttribute>(contract.NonNullableUnderlyingType);
             if (containerAttribute != null)
             {
                 contract.IsReference = containerAttribute._isReference;
@@ -699,8 +709,8 @@ namespace BESSy.Json.Serialization
             // then see whether object is compadible with any of the built in converters
             contract.InternalConverter = JsonSerializer.GetMatchingConverter(BuiltInConverters, contract.NonNullableUnderlyingType);
 
-            if (ReflectionUtils.HasDefaultConstructor(contract.CreatedType, true)
-                || contract.CreatedType.IsValueType())
+            if (contract.IsInstantiable
+                && (ReflectionUtils.HasDefaultConstructor(contract.CreatedType, true) || contract.CreatedType.IsValueType()))
             {
                 contract.DefaultCreator = GetDefaultCreator(contract.CreatedType);
 
@@ -909,9 +919,9 @@ namespace BESSy.Json.Serialization
             ConstructorInfo constructorInfo = contract.NonNullableUnderlyingType.GetConstructor(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance, null, new[] { typeof(SerializationInfo), typeof(StreamingContext) }, null);
             if (constructorInfo != null)
             {
-                MethodCall<object, object> methodCall = JsonTypeReflector.ReflectionDelegateFactory.CreateMethodCall<object>(constructorInfo);
+                ObjectConstructor<object> creator = JsonTypeReflector.ReflectionDelegateFactory.CreateParametrizedConstructor(constructorInfo);
 
-                contract.ISerializableCreator = (args => methodCall(null, args));
+                contract.ISerializableCreator = creator;
             }
 
             return contract;
@@ -956,18 +966,19 @@ namespace BESSy.Json.Serialization
         /// <returns>A <see cref="JsonContract"/> for the given type.</returns>
         protected virtual JsonContract CreateContract(Type objectType)
         {
-            Type t = ReflectionUtils.EnsureNotNullableType(objectType);
-
             if (IsJsonPrimitiveType(objectType))
                 return CreatePrimitiveContract(objectType);
 
-            if (JsonTypeReflector.GetJsonObjectAttribute(t) != null)
+            Type t = ReflectionUtils.EnsureNotNullableType(objectType);
+            JsonContainerAttribute containerAttribute = JsonTypeReflector.GetCachedAttribute<JsonContainerAttribute>(t);
+
+            if (containerAttribute is JsonObjectAttribute)
                 return CreateObjectContract(objectType);
 
-            if (JsonTypeReflector.GetJsonArrayAttribute(t) != null)
+            if (containerAttribute is JsonArrayAttribute)
                 return CreateArrayContract(objectType);
 
-            if (JsonTypeReflector.GetJsonDictionaryAttribute(t) != null)
+            if (containerAttribute is JsonDictionaryAttribute)
                 return CreateDictionaryContract(objectType);
 
             if (t == typeof(JToken) || t.IsSubclassOf(typeof(JToken)))
@@ -1103,7 +1114,17 @@ namespace BESSy.Json.Serialization
                 JsonProperty property = CreateProperty(member, memberSerialization);
 
                 if (property != null)
+                {
+                    DefaultContractResolverState state = GetState();
+
+                    // nametable is not thread-safe for multiple writers
+                    lock (state.NameTable)
+                    {
+                        property.PropertyName = state.NameTable.Add(property.PropertyName);
+                    }
+
                     properties.AddProperty(property);
+                }
             }
 
             IList<JsonProperty> orderedProperties = properties.OrderBy(p => p.Order ?? -1).ToList();
@@ -1126,7 +1147,7 @@ namespace BESSy.Json.Serialization
             else
                 valueProvider = new ReflectionValueProvider(member);
 #elif !(PORTABLE40)
-      valueProvider = new ExpressionValueProvider(member);
+            valueProvider = new ExpressionValueProvider(member);
 #else
             valueProvider = new ReflectionValueProvider(member);
 #endif
@@ -1245,8 +1266,8 @@ namespace BESSy.Json.Serialization
 
             // resolve converter for property
             // the class type might have a converter but the property converter takes presidence
-            property.Converter = JsonTypeReflector.GetJsonConverter(attributeProvider, property.PropertyType);
-            property.MemberConverter = JsonTypeReflector.GetJsonConverter(attributeProvider, property.PropertyType);
+            property.Converter = JsonTypeReflector.GetJsonConverter(attributeProvider);
+            property.MemberConverter = JsonTypeReflector.GetJsonConverter(attributeProvider);
 
             DefaultValueAttribute defaultValueAttribute = JsonTypeReflector.GetAttribute<DefaultValueAttribute>(attributeProvider);
             if (defaultValueAttribute != null)
@@ -1261,7 +1282,7 @@ namespace BESSy.Json.Serialization
             property.ItemIsReference = (propertyAttribute != null) ? propertyAttribute._itemIsReference : null;
             property.ItemConverter =
                 (propertyAttribute != null && propertyAttribute.ItemConverterType != null)
-                    ? JsonConverterAttribute.CreateJsonConverterInstance(propertyAttribute.ItemConverterType)
+                    ? JsonTypeReflector.CreateJsonConverterInstance(propertyAttribute.ItemConverterType, propertyAttribute.ItemConverterParameters)
                     : null;
             property.ItemReferenceLoopHandling = (propertyAttribute != null) ? propertyAttribute._itemReferenceLoopHandling : null;
             property.ItemTypeNameHandling = (propertyAttribute != null) ? propertyAttribute._itemTypeNameHandling : null;

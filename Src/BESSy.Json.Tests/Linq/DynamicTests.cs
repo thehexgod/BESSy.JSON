@@ -23,22 +23,27 @@
 // OTHER DEALINGS IN THE SOFTWARE.
 #endregion
 
+using System.Diagnostics;
 #if !(NET35 || NET20 || PORTABLE40)
 using System;
 using System.Collections.Generic;
 using System.Dynamic;
 using System.Linq;
-#if !(NET20 || NET35 || PORTABLE)
+#if !(NET20 || NET35 || PORTABLE || ASPNETCORE50)
 using System.Numerics;
 #endif
 using System.Text;
 using BESSy.Json.Linq;
-#if !NETFX_CORE
-using NUnit.Framework;
-#else
+#if NETFX_CORE
 using Microsoft.VisualStudio.TestPlatform.UnitTestFramework;
 using TestFixture = Microsoft.VisualStudio.TestPlatform.UnitTestFramework.TestClassAttribute;
 using Test = Microsoft.VisualStudio.TestPlatform.UnitTestFramework.TestMethodAttribute;
+#elif ASPNETCORE50
+using Xunit;
+using Test = Xunit.FactAttribute;
+using Assert = Newtonsoft.Json.Tests.XUnitAssert;
+#else
+using NUnit.Framework;
 #endif
 using BESSy.Json.Utilities;
 using System.Globalization;
@@ -48,6 +53,54 @@ namespace BESSy.Json.Tests.Linq
     [TestFixture]
     public class DynamicTests : TestFixtureBase
     {
+        private void UpdateValueCount(IDictionary<string, int> counts, dynamic d)
+        {
+            string s = d.ToString();
+
+            int c;
+            if (!counts.TryGetValue(s, out c))
+            {
+                c = 0;
+            }
+
+            c++;
+            counts[s] = c;
+        }
+
+        [Test]
+        public void DeserializeLargeDynamic()
+        {
+            dynamic d;
+
+            using (var jsonFile = System.IO.File.OpenText("large.json"))
+            using (JsonTextReader jsonTextReader = new JsonTextReader(jsonFile))
+            {
+                JsonSerializer serializer = new JsonSerializer();
+                d = serializer.Deserialize(jsonTextReader);
+            }
+
+            IDictionary<string, int> counts = new Dictionary<string, int>();
+
+            Stopwatch sw = new Stopwatch();
+            sw.Start();
+
+            foreach (dynamic o in d)
+            {
+                foreach (dynamic friend in o.friends)
+                {
+                    UpdateValueCount(counts, friend.id);
+                    UpdateValueCount(counts, ((string) friend.name).Split(' ')[0]);
+                }
+            }
+
+            //foreach (KeyValuePair<string, int> keyValuePair in counts)
+            //{
+            //    Console.WriteLine(keyValuePair.Key + ": " + keyValuePair.Value);
+            //}
+
+            Console.WriteLine("Time (secs): " + sw.Elapsed.TotalSeconds);
+        }
+
         [Test]
         public void JObjectPropertyNames()
         {
@@ -133,14 +186,12 @@ namespace BESSy.Json.Tests.Linq
         [Test]
         public void JObjectPropertyNameWithNonToken()
         {
-            ExceptionAssert.Throws<ArgumentException>(
-                "Could not determine JSON object type for type System.String[].",
-                () =>
-                {
-                    dynamic d = new JObject();
+            ExceptionAssert.Throws<ArgumentException>(() =>
+            {
+                dynamic d = new JObject();
 
-                    d.First = new[] { "One", "II", "3" };
-                });
+                d.First = new[] { "One", "II", "3" };
+            }, "Could not determine JSON object type for type System.String[].");
         }
 
         [Test]
@@ -167,7 +218,7 @@ namespace BESSy.Json.Tests.Linq
         public void JValueEquals()
         {
             JObject o = new JObject(
-                new JProperty("Null", new JValue(null, JTokenType.Null)),
+                new JProperty("Null", JValue.CreateNull()),
                 new JProperty("Integer", new JValue(1)),
                 new JProperty("Float", new JValue(1.1d)),
                 new JProperty("Decimal", new JValue(1.1m)),
@@ -178,7 +229,7 @@ namespace BESSy.Json.Tests.Linq
                 new JProperty("Uri", new Uri("http://json.codeplex.com/")),
                 new JProperty("Guid", new Guid("EA27FE1D-0D80-44F2-BF34-4654156FA7AF")),
                 new JProperty("TimeSpan", TimeSpan.FromDays(1))
-#if !(NET20 || NET35 || PORTABLE)
+#if !(NET20 || NET35 || PORTABLE || ASPNETCORE50)
                 , new JProperty("BigInteger", BigInteger.Parse("1"))
 #endif
                 );
@@ -187,7 +238,7 @@ namespace BESSy.Json.Tests.Linq
 
             Assert.IsTrue(d.Null == d.Null);
             Assert.IsTrue(d.Null == null);
-            Assert.IsTrue(d.Null == new JValue(null, JTokenType.Null));
+            Assert.IsTrue(d.Null == JValue.CreateNull());
             Assert.IsFalse(d.Null == 1);
 
             Assert.IsTrue(d.Integer == d.Integer);
@@ -211,7 +262,7 @@ namespace BESSy.Json.Tests.Linq
             Assert.IsTrue(d.Decimal == 1.1m);
             Assert.IsTrue(d.Decimal != 1.0f);
             Assert.IsTrue(d.Decimal != 1.0d);
-#if !(NET20 || NET35 || PORTABLE)
+#if !(NET20 || NET35 || PORTABLE || ASPNETCORE50)
             Assert.IsTrue(d.Decimal > new BigInteger(0));
 #endif
 
@@ -227,11 +278,11 @@ namespace BESSy.Json.Tests.Linq
             Assert.IsTrue(d.Float == 1.1m);
             Assert.IsTrue(d.Float != 1.0f);
             Assert.IsTrue(d.Float != 1.0d);
-#if !(NET20 || NET35 || PORTABLE)
+#if !(NET20 || NET35 || PORTABLE || ASPNETCORE50)
             Assert.IsTrue(d.Float > new BigInteger(0));
 #endif
 
-#if !(NET20 || NET35 || PORTABLE)
+#if !(NET20 || NET35 || PORTABLE || ASPNETCORE50)
             Assert.IsTrue(d.BigInteger == d.BigInteger);
             Assert.IsTrue(d.BigInteger > 0);
             Assert.IsTrue(d.BigInteger > 0.0m);
@@ -276,7 +327,7 @@ namespace BESSy.Json.Tests.Linq
         public void JValueAddition()
         {
             JObject o = new JObject(
-                new JProperty("Null", new JValue(null, JTokenType.Null)),
+                new JProperty("Null", JValue.CreateNull()),
                 new JProperty("Integer", new JValue(1)),
                 new JProperty("Float", new JValue(1.1d)),
                 new JProperty("Decimal", new JValue(1.1m)),
@@ -287,7 +338,7 @@ namespace BESSy.Json.Tests.Linq
                 new JProperty("Uri", new Uri("http://json.codeplex.com/")),
                 new JProperty("Guid", new Guid("EA27FE1D-0D80-44F2-BF34-4654156FA7AF")),
                 new JProperty("TimeSpan", TimeSpan.FromDays(1))
-#if !(NET20 || NET35 || PORTABLE)
+#if !(NET20 || NET35 || PORTABLE || ASPNETCORE50)
                 , new JProperty("BigInteger", new BigInteger(100))
 #endif
                 );
@@ -366,7 +417,7 @@ namespace BESSy.Json.Tests.Linq
             r += 2;
             Assert.AreEqual(null, r.Value);
 
-#if !(NET20 || NET35 || PORTABLE)
+#if !(NET20 || NET35 || PORTABLE || ASPNETCORE50)
             r = d.BigInteger + null;
             Assert.AreEqual(null, r.Value);
             r += 2;
@@ -445,7 +496,7 @@ namespace BESSy.Json.Tests.Linq
             r -= 2;
             Assert.AreEqual(null, r.Value);
 
-#if !(NET20 || NET35 || PORTABLE)
+#if !(NET20 || NET35 || PORTABLE || ASPNETCORE50)
             r = d.BigInteger - null;
             Assert.AreEqual(null, r.Value);
             r -= 2;
@@ -519,7 +570,7 @@ namespace BESSy.Json.Tests.Linq
             r *= 2;
             Assert.AreEqual(null, r.Value);
 
-#if !(NET20 || NET35 || PORTABLE)
+#if !(NET20 || NET35 || PORTABLE || ASPNETCORE50)
             r = d.BigInteger * 1.1d;
             Assert.AreEqual(100m, (decimal)r);
             r *= 2;
@@ -593,7 +644,7 @@ namespace BESSy.Json.Tests.Linq
             r /= 2;
             Assert.AreEqual(null, r.Value);
 
-#if !(NET20 || NET35 || PORTABLE)
+#if !(NET20 || NET35 || PORTABLE || ASPNETCORE50)
             r = d.BigInteger / 1.1d;
             Assert.AreEqual(100m, (decimal)r);
             r /= 2;
@@ -611,7 +662,7 @@ namespace BESSy.Json.Tests.Linq
         public void JValueToString()
         {
             JObject o = new JObject(
-                new JProperty("Null", new JValue(null, JTokenType.Null)),
+                new JProperty("Null", JValue.CreateNull()),
                 new JProperty("Integer", new JValue(1)),
                 new JProperty("Float", new JValue(1.1)),
                 new JProperty("DateTime", new JValue(new DateTime(2000, 12, 29, 23, 51, 10, DateTimeKind.Utc))),
@@ -621,7 +672,7 @@ namespace BESSy.Json.Tests.Linq
                 new JProperty("Uri", new Uri("http://json.codeplex.com/")),
                 new JProperty("Guid", new Guid("EA27FE1D-0D80-44F2-BF34-4654156FA7AF")),
                 new JProperty("TimeSpan", TimeSpan.FromDays(1))
-#if !(NET20 || NET35 || PORTABLE)
+#if !(NET20 || NET35 || PORTABLE || ASPNETCORE50)
                 , new JProperty("BigInteger", new BigInteger(100))
 #endif
                 );
@@ -638,7 +689,7 @@ namespace BESSy.Json.Tests.Linq
             Assert.AreEqual("http://json.codeplex.com/", d.Uri.ToString());
             Assert.AreEqual("ea27fe1d-0d80-44f2-bf34-4654156fa7af", d.Guid.ToString());
             Assert.AreEqual("1.00:00:00", d.TimeSpan.ToString());
-#if !(NET20 || NET35 || PORTABLE)
+#if !(NET20 || NET35 || PORTABLE || ASPNETCORE50)
             Assert.AreEqual("100", d.BigInteger.ToString());
 #endif
         }
@@ -722,7 +773,7 @@ namespace BESSy.Json.Tests.Linq
             AssertValueConverted<Guid?>(null);
             AssertValueConverted<Uri>(new Uri("http://json.codeplex.com/"));
             AssertValueConverted<Uri>(null);
-#if !(NET20 || NET35 || PORTABLE)
+#if !(NET20 || NET35 || PORTABLE || ASPNETCORE50)
             AssertValueConverted<BigInteger>(new BigInteger(100));
             AssertValueConverted<BigInteger?>(null);
 #endif
@@ -786,6 +837,9 @@ namespace BESSy.Json.Tests.Linq
 
             string newRole = newHotness.Roles[0];
             // Admin
+
+            Assert.AreEqual("Admin", oldRole);
+            Assert.AreEqual("Admin", newRole);
         }
 
         [Test]
@@ -814,7 +868,7 @@ namespace BESSy.Json.Tests.Linq
             //   "StockValue": 22050.00
             // }
 
-            Assert.AreEqual(@"{
+            StringAssert.AreEqual(@"{
   ""ProductName"": ""Elbow Grease (SALE)"",
   ""Enabled"": true,
   ""Price"": 2.45,

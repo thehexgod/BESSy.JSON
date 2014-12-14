@@ -28,12 +28,21 @@ using System.Collections;
 using System.Collections.Generic;
 using System.ComponentModel;
 using BESSy.Json.Linq;
-#if !NETFX_CORE
-using NUnit.Framework;
+using Newtonsoft.Json.Utilities.LinqBridge;
 #else
+using System.Linq;
+#endif
+using Newtonsoft.Json.Linq;
+#if NETFX_CORE
 using Microsoft.VisualStudio.TestPlatform.UnitTestFramework;
 using TestFixture = Microsoft.VisualStudio.TestPlatform.UnitTestFramework.TestClassAttribute;
 using Test = Microsoft.VisualStudio.TestPlatform.UnitTestFramework.TestMethodAttribute;
+#elif ASPNETCORE50
+using Xunit;
+using Test = Xunit.FactAttribute;
+using Assert = Newtonsoft.Json.Tests.XUnitAssert;
+#else
+using NUnit.Framework;
 #endif
 using System.IO;
 
@@ -56,7 +65,7 @@ namespace BESSy.Json.Tests.Linq
             Assert.AreEqual(p, p.Value.Parent);
         }
 
-#if !(NETFX_CORE || PORTABLE || PORTABLE40)
+#if !(NETFX_CORE || PORTABLE || ASPNETCORE50 || PORTABLE40)
         [Test]
         public void ListChanged()
         {
@@ -94,9 +103,8 @@ namespace BESSy.Json.Tests.Linq
             JProperty p = new JProperty("TestProperty", null);
             IList l = p;
 
-            ExceptionAssert.Throws<JsonException>(
+            ExceptionAssert.Throws<JsonException>(() => { l.Clear(); }, "Cannot add or remove items from Newtonsoft.Json.Linq.JProperty.");
                 "Cannot add or remove items from BESSy.Json.Linq.JProperty.",
-                () => { l.Clear(); });
         }
 
         [Test]
@@ -105,9 +113,8 @@ namespace BESSy.Json.Tests.Linq
             JProperty p = new JProperty("TestProperty", null);
             IList l = p;
 
-            ExceptionAssert.Throws<JsonException>(
+            ExceptionAssert.Throws<JsonException>(() => { l.Add(null); }, "Newtonsoft.Json.Linq.JProperty cannot have multiple values.");
                 "BESSy.Json.Linq.JProperty cannot have multiple values.",
-                () => { l.Add(null); });
         }
 
         [Test]
@@ -116,9 +123,58 @@ namespace BESSy.Json.Tests.Linq
             JProperty p = new JProperty("TestProperty", null);
             IList l = p;
 
-            ExceptionAssert.Throws<JsonException>(
+            ExceptionAssert.Throws<JsonException>(() => { l.Remove(p.Value); }, "Cannot add or remove items from Newtonsoft.Json.Linq.JProperty.");
                 "Cannot add or remove items from BESSy.Json.Linq.JProperty.",
-                () => { l.Remove(p.Value); });
+
+        [Test]
+        public void IListRemoveAt()
+        {
+            JProperty p = new JProperty("TestProperty", null);
+            IList l = p;
+
+            ExceptionAssert.Throws<JsonException>(() => { l.RemoveAt(0); }, "Cannot add or remove items from Newtonsoft.Json.Linq.JProperty.");
+        }
+
+        [Test]
+        public void JPropertyLinq()
+        {
+            JProperty p = new JProperty("TestProperty", null);
+            IList l = p;
+
+            List<JToken> result = l.Cast<JToken>().ToList();
+            Assert.AreEqual(1, result.Count);
+        }
+
+        [Test]
+        public void JPropertyDeepEquals()
+        {
+            JProperty p1 = new JProperty("TestProperty", null);
+            JProperty p2 = new JProperty("TestProperty", null);
+
+            Assert.AreEqual(true, JToken.DeepEquals(p1, p2));
+        }
+
+        [Test]
+        public void JPropertyIndexOf()
+        {
+            JValue v = new JValue(1);
+            JProperty p1 = new JProperty("TestProperty", v);
+
+            IList l1 = p1;
+            Assert.AreEqual(0, l1.IndexOf(v));
+
+            IList<JToken> l2 = p1;
+            Assert.AreEqual(0, l2.IndexOf(v));
+        }
+
+        [Test]
+        public void JPropertyContains()
+        {
+            JValue v = new JValue(1);
+            JProperty p = new JProperty("TestProperty", v);
+
+            Assert.AreEqual(true, p.Contains(v));
+            Assert.AreEqual(false, p.Contains(new JValue(1)));
         }
 
         [Test]
@@ -144,7 +200,7 @@ namespace BESSy.Json.Tests.Linq
 
             property = JProperty.Load(reader);
             Assert.AreEqual("propertyname", property.Name);
-            Assert.IsTrue(JToken.DeepEquals(new JValue(null, JTokenType.Null), property.Value));
+            Assert.IsTrue(JToken.DeepEquals(JValue.CreateNull(), property.Value));
 
             Assert.AreEqual(JsonToken.EndObject, reader.TokenType);
         }
@@ -165,9 +221,8 @@ namespace BESSy.Json.Tests.Linq
         {
             IList<JToken> t = new JProperty("error", new List<string> { "one", "two" });
 
-            ExceptionAssert.Throws<JsonException>(
+            ExceptionAssert.Throws<JsonException>(() => { t.Add(1); }, "Newtonsoft.Json.Linq.JProperty cannot have multiple values.");
                 "BESSy.Json.Linq.JProperty cannot have multiple values.",
-                () => { t.Add(1); });
         }
     }
 }

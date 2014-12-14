@@ -175,10 +175,10 @@ namespace BESSy.Json.Bson
         }
 
         /// <summary>
-        /// Reads the next JSON token from the stream as a <see cref="T:Byte[]"/>.
+        /// Reads the next JSON token from the stream as a <see cref="Byte"/>[].
         /// </summary>
         /// <returns>
-        /// A <see cref="T:Byte[]"/> or a null reference if the next JSON token is null. This method will return <c>null</c> at the end of an array.
+        /// A <see cref="Byte"/>[] or a null reference if the next JSON token is null. This method will return <c>null</c> at the end of an array.
         /// </returns>
         public override byte[] ReadAsBytes()
         {
@@ -536,7 +536,14 @@ namespace BESSy.Json.Bson
                     break;
                 }
                 case BsonType.Binary:
-                    SetToken(JsonToken.Bytes, ReadBinary());
+                    BsonBinaryType binaryType;
+                    byte[] data = ReadBinary(out binaryType);
+
+                    object value = (binaryType != BsonBinaryType.Uuid)
+                        ? data
+                        : (object)new Guid(data);
+
+                    SetToken(JsonToken.Bytes, value);
                     break;
                 case BsonType.Undefined:
                     SetToken(JsonToken.Undefined);
@@ -602,11 +609,11 @@ namespace BESSy.Json.Bson
             }
         }
 
-        private byte[] ReadBinary()
+        private byte[] ReadBinary(out BsonBinaryType binaryType)
         {
             int dataLength = ReadInt32();
 
-            BsonBinaryType binaryType = (BsonBinaryType)ReadByte();
+            binaryType = (BsonBinaryType)ReadByte();
 
 #pragma warning disable 612,618
             // the old binary type has the data length repeated in the data for some reason

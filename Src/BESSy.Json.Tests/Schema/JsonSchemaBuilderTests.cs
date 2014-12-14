@@ -24,12 +24,16 @@
 #endregion
 
 using System;
-#if !NETFX_CORE
-using NUnit.Framework;
-#else
+#if NETFX_CORE
 using Microsoft.VisualStudio.TestPlatform.UnitTestFramework;
 using TestFixture = Microsoft.VisualStudio.TestPlatform.UnitTestFramework.TestClassAttribute;
 using Test = Microsoft.VisualStudio.TestPlatform.UnitTestFramework.TestMethodAttribute;
+#elif ASPNETCORE50
+using Xunit;
+using Test = Xunit.FactAttribute;
+using Assert = Newtonsoft.Json.Tests.XUnitAssert;
+#else
+using NUnit.Framework;
 #endif
 using BESSy.Json.Schema;
 using System.IO;
@@ -384,19 +388,18 @@ namespace BESSy.Json.Tests.Schema
         [Test]
         public void UnresolvedReference()
         {
-            ExceptionAssert.Throws<Exception>(@"Could not resolve schema reference 'MyUnresolvedReference'.",
-                () =>
-                {
-                    string json = @"{
+            ExceptionAssert.Throws<Exception>(() =>
+            {
+                string json = @"{
   ""id"":""CircularReferenceArray"",
   ""description"":""CircularReference"",
   ""type"":[""array""],
   ""items"":{""$ref"":""MyUnresolvedReference""}
 }";
 
-                    JsonSchemaBuilder builder = new JsonSchemaBuilder(new JsonSchemaResolver());
-                    JsonSchema schema = builder.Read(new JsonTextReader(new StringReader(json)));
-                });
+                JsonSchemaBuilder builder = new JsonSchemaBuilder(new JsonSchemaResolver());
+                JsonSchema schema = builder.Read(new JsonTextReader(new StringReader(json)));
+            }, @"Could not resolve schema reference 'MyUnresolvedReference'.");
         }
 
         [Test]
@@ -597,13 +600,11 @@ namespace BESSy.Json.Tests.Schema
             }
         }";
 
-            ExceptionAssert.Throws<JsonException>(
-                "Could not resolve schema reference '#/array/10'.",
-                () =>
-                {
-                    JsonSchemaBuilder builder = new JsonSchemaBuilder(new JsonSchemaResolver());
-                    builder.Read(new JsonTextReader(new StringReader(json)));
-                });
+            ExceptionAssert.Throws<JsonException>(() =>
+            {
+                JsonSchemaBuilder builder = new JsonSchemaBuilder(new JsonSchemaResolver());
+                builder.Read(new JsonTextReader(new StringReader(json)));
+            }, "Could not resolve schema reference '#/array/10'.");
         }
 
         [Test]
@@ -617,13 +618,11 @@ namespace BESSy.Json.Tests.Schema
             }
         }";
 
-            ExceptionAssert.Throws<JsonException>(
-                "Could not resolve schema reference '#/array/-1'.",
-                () =>
-                {
-                    JsonSchemaBuilder builder = new JsonSchemaBuilder(new JsonSchemaResolver());
-                    builder.Read(new JsonTextReader(new StringReader(json)));
-                });
+            ExceptionAssert.Throws<JsonException>(() =>
+            {
+                JsonSchemaBuilder builder = new JsonSchemaBuilder(new JsonSchemaResolver());
+                builder.Read(new JsonTextReader(new StringReader(json)));
+            }, "Could not resolve schema reference '#/array/-1'.");
         }
 
         [Test]
@@ -637,13 +636,11 @@ namespace BESSy.Json.Tests.Schema
             }
         }";
 
-            ExceptionAssert.Throws<JsonException>(
-                "Could not resolve schema reference '#/array/one'.",
-                () =>
-                {
-                    JsonSchemaBuilder builder = new JsonSchemaBuilder(new JsonSchemaResolver());
-                    builder.Read(new JsonTextReader(new StringReader(json)));
-                });
+            ExceptionAssert.Throws<JsonException>(() =>
+            {
+                JsonSchemaBuilder builder = new JsonSchemaBuilder(new JsonSchemaResolver());
+                builder.Read(new JsonTextReader(new StringReader(json)));
+            }, "Could not resolve schema reference '#/array/one'.");
         }
     }
 }

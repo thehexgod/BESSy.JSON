@@ -32,12 +32,16 @@ using System.Runtime.Serialization.Json;
 #endif
 using System.Text;
 using BESSy.Json.Tests.TestObjects;
-#if !NETFX_CORE
-using NUnit.Framework;
-#else
+#if NETFX_CORE
 using Microsoft.VisualStudio.TestPlatform.UnitTestFramework;
 using TestFixture = Microsoft.VisualStudio.TestPlatform.UnitTestFramework.TestClassAttribute;
 using Test = Microsoft.VisualStudio.TestPlatform.UnitTestFramework.TestMethodAttribute;
+#elif ASPNETCORE50
+using Xunit;
+using Test = Xunit.FactAttribute;
+using Assert = Newtonsoft.Json.Tests.XUnitAssert;
+#else
+using NUnit.Framework;
 #endif
 using BESSy.Json.Utilities;
 
@@ -46,6 +50,42 @@ namespace BESSy.Json.Tests.Serialization
     [TestFixture]
     public class DefaultValueHandlingTests : TestFixtureBase
     {
+        public class MyClass
+        {
+            [JsonIgnore]
+            public MyEnum Status { get; set; }
+
+            private string _data;
+            public string Data
+            {
+                get { return _data; }
+                set
+                {
+                    _data = value;
+                    if (_data != null && _data.StartsWith("Other"))
+                    {
+                        this.Status = MyEnum.Other;
+                    }
+                }
+            }
+        }
+
+        public enum MyEnum
+        {
+            Default = 0,
+            Other
+        }
+
+        [Test]
+        public void PopulateWithJsonIgnoreAttribute()
+        {
+            string json = "{\"Data\":\"Other with some more text\"}";
+
+            MyClass result = JsonConvert.DeserializeObject<MyClass>(json, new JsonSerializerSettings() { DefaultValueHandling = DefaultValueHandling.IgnoreAndPopulate });
+            
+            Assert.AreEqual(MyEnum.Other, result.Status);
+        }
+
         [Test]
         public void Include()
         {
@@ -63,7 +103,7 @@ namespace BESSy.Json.Tests.Serialization
                 Formatting.Indented,
                 new JsonSerializerSettings { DefaultValueHandling = DefaultValueHandling.Include });
 
-            Assert.AreEqual(@"{
+            StringAssert.AreEqual(@"{
   ""Company"": ""Acme Ltd."",
   ""Amount"": 50.0,
   ""Paid"": false,
@@ -90,7 +130,7 @@ namespace BESSy.Json.Tests.Serialization
                 Formatting.Indented,
                 new JsonSerializerSettings { });
 
-            Assert.AreEqual(@"{
+            StringAssert.AreEqual(@"{
   ""Company"": ""Acme Ltd."",
   ""Amount"": 50.0,
   ""Paid"": false,
@@ -103,7 +143,7 @@ namespace BESSy.Json.Tests.Serialization
                 Formatting.Indented,
                 new JsonSerializerSettings { DefaultValueHandling = DefaultValueHandling.Ignore });
 
-            Assert.AreEqual(@"{
+            StringAssert.AreEqual(@"{
   ""Company"": ""Acme Ltd."",
   ""Amount"": 50.0
 }", ignored);
@@ -259,7 +299,7 @@ namespace BESSy.Json.Tests.Serialization
 
             string json = JsonConvert.SerializeObject(c, Formatting.Indented);
 
-            Assert.AreEqual(@"{
+            StringAssert.AreEqual(@"{
   ""IntInclude"": 0,
   ""IntDefault"": 0
 }", json);
@@ -269,7 +309,7 @@ namespace BESSy.Json.Tests.Serialization
                 DefaultValueHandling = DefaultValueHandling.Ignore
             });
 
-            Assert.AreEqual(@"{
+            StringAssert.AreEqual(@"{
   ""IntInclude"": 0
 }", json);
 
@@ -278,7 +318,7 @@ namespace BESSy.Json.Tests.Serialization
                 DefaultValueHandling = DefaultValueHandling.Include
             });
 
-            Assert.AreEqual(@"{
+            StringAssert.AreEqual(@"{
   ""IntInclude"": 0,
   ""IntDefault"": 0
 }", json);

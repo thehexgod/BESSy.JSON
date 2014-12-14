@@ -110,5 +110,4 @@ namespace BESSy.Json.Serialization
         }
     }
 }
-
 #endif

@@ -27,12 +27,16 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Runtime.Serialization;
-#if !NETFX_CORE
-using NUnit.Framework;
-#else
+#if NETFX_CORE
 using Microsoft.VisualStudio.TestPlatform.UnitTestFramework;
 using TestFixture = Microsoft.VisualStudio.TestPlatform.UnitTestFramework.TestClassAttribute;
 using Test = Microsoft.VisualStudio.TestPlatform.UnitTestFramework.TestMethodAttribute;
+#elif ASPNETCORE50
+using Xunit;
+using Test = Xunit.FactAttribute;
+using Assert = Newtonsoft.Json.Tests.XUnitAssert;
+#else
+using NUnit.Framework;
 #endif
 #if NET20
 using BESSy.Json.Utilities.LinqBridge;
@@ -71,9 +75,12 @@ namespace BESSy.Json.Tests.Serialization
 
     public class EscapedPropertiesContractResolver : DefaultContractResolver
     {
+        public string PropertyPrefix { get; set; }
+        public string PropertySuffix { get; set; }
+
         protected internal override string ResolvePropertyName(string propertyName)
         {
-            return base.ResolvePropertyName(propertyName + @"-'-""-");
+            return base.ResolvePropertyName(PropertyPrefix + propertyName + PropertySuffix);
         }
     }
 
@@ -109,6 +116,178 @@ namespace BESSy.Json.Tests.Serialization
     public class ContractResolverTests : TestFixtureBase
     {
         [Test]
+        public void JsonPropertyDefaultValue()
+        {
+            JsonProperty p = new JsonProperty();
+
+            Assert.AreEqual(null, p.GetResolvedDefaultValue());
+            Assert.AreEqual(null, p.DefaultValue);
+
+            p.PropertyType = typeof(int);
+
+            Assert.AreEqual(0 , p.GetResolvedDefaultValue());
+            Assert.AreEqual(null, p.DefaultValue);
+
+            p.PropertyType = typeof(DateTime);
+
+            Assert.AreEqual(new DateTime(), p.GetResolvedDefaultValue());
+            Assert.AreEqual(null, p.DefaultValue);
+
+            p.PropertyType = null;
+
+            Assert.AreEqual(null, p.GetResolvedDefaultValue());
+            Assert.AreEqual(null, p.DefaultValue);
+
+            p.PropertyType = typeof(CompareOptions);
+
+            Assert.AreEqual(CompareOptions.None, (CompareOptions)p.GetResolvedDefaultValue());
+            Assert.AreEqual(null, p.DefaultValue);
+        }
+
+        [Test]
+        public void ListInterface()
+        {
+            var resolver = new DefaultContractResolver();
+            var contract = (JsonArrayContract)resolver.ResolveContract(typeof(IList<int>));
+
+            Assert.IsTrue(contract.IsInstantiable);
+            Assert.AreEqual(typeof(List<int>), contract.CreatedType);
+            Assert.IsNotNull(contract.DefaultCreator);
+        }
+
+        [Test]
+        public void AbstractTestClass()
+        {
+            var resolver = new DefaultContractResolver();
+            var contract = (JsonObjectContract)resolver.ResolveContract(typeof(AbstractTestClass));
+
+            Assert.IsFalse(contract.IsInstantiable);
+            Assert.IsNull(contract.DefaultCreator);
+            Assert.IsNull(contract.OverrideCreator);
+
+            ExceptionAssert.Throws<JsonSerializationException>(() => JsonConvert.DeserializeObject<AbstractTestClass>(@"{Value:'Value!'}", new JsonSerializerSettings
+            {
+                ContractResolver = resolver
+            }), "Could not create an instance of type Newtonsoft.Json.Tests.Serialization.AbstractTestClass. Type is an interface or abstract class and cannot be instantiated. Path 'Value', line 1, position 7.");
+
+            contract.DefaultCreator = () => new AbstractImplementationTestClass();
+
+            var o = JsonConvert.DeserializeObject<AbstractTestClass>(@"{Value:'Value!'}", new JsonSerializerSettings
+            {
+                ContractResolver = resolver
+            });
+
+            Assert.AreEqual("Value!", o.Value);
+        }
+
+        [Test]
+        public void AbstractListTestClass()
+        {
+            var resolver = new DefaultContractResolver();
+            var contract = (JsonArrayContract)resolver.ResolveContract(typeof(AbstractListTestClass<int>));
+
+            Assert.IsFalse(contract.IsInstantiable);
+            Assert.IsNull(contract.DefaultCreator);
+            Assert.IsFalse(contract.HasParametrizedCreator);
+
+            ExceptionAssert.Throws<JsonSerializationException>(() => JsonConvert.DeserializeObject<AbstractListTestClass<int>>(@"[1,2]", new JsonSerializerSettings
+            {
+                ContractResolver = resolver
+            }), "Could not create an instance of type Newtonsoft.Json.Tests.Serialization.AbstractListTestClass`1[System.Int32]. Type is an interface or abstract class and cannot be instantiated. Path '', line 1, position 1.");
+
+            contract.DefaultCreator = () => new AbstractImplementationListTestClass<int>();
+
+            var l = JsonConvert.DeserializeObject<AbstractListTestClass<int>>(@"[1,2]", new JsonSerializerSettings
+            {
+                ContractResolver = resolver
+            });
+
+            Assert.AreEqual(2, l.Count);
+            Assert.AreEqual(1, l[0]);
+            Assert.AreEqual(2, l[1]);
+        }
+
+        public class CustomList<T> : List<T>
+        {   
+        }
+
+        [Test]
+        public void ListInterfaceDefaultCreator()
+        {
+            var resolver = new DefaultContractResolver();
+            var contract = (JsonArrayContract)resolver.ResolveContract(typeof(IList<int>));
+
+            Assert.IsTrue(contract.IsInstantiable);
+            Assert.IsNotNull(contract.DefaultCreator);
+
+            contract.DefaultCreator = () => new CustomList<int>();
+
+            var l = JsonConvert.DeserializeObject<IList<int>>(@"[1,2,3]", new JsonSerializerSettings
+            {
+                ContractResolver = resolver
+            });
+
+            Assert.AreEqual(typeof(CustomList<int>), l.GetType());
+            Assert.AreEqual(3, l.Count);
+            Assert.AreEqual(1, l[0]);
+            Assert.AreEqual(2, l[1]);
+            Assert.AreEqual(3, l[2]);
+        }
+
+        public class CustomDictionary<TKey, TValue> : Dictionary<TKey, TValue>
+        {
+        }
+
+        [Test]
+        public void DictionaryInterfaceDefaultCreator()
+        {
+            var resolver = new DefaultContractResolver();
+            var contract = (JsonDictionaryContract)resolver.ResolveContract(typeof(IDictionary<string, int>));
+
+            Assert.IsTrue(contract.IsInstantiable);
+            Assert.IsNotNull(contract.DefaultCreator);
+
+            contract.DefaultCreator = () => new CustomDictionary<string, int>();
+
+            var d = JsonConvert.DeserializeObject<IDictionary<string, int>>(@"{key1:1,key2:2}", new JsonSerializerSettings
+            {
+                ContractResolver = resolver
+            });
+
+            Assert.AreEqual(typeof(CustomDictionary<string, int>), d.GetType());
+            Assert.AreEqual(2, d.Count);
+            Assert.AreEqual(1, d["key1"]);
+            Assert.AreEqual(2, d["key2"]);
+        }
+
+        [Test]
+        public void AbstractDictionaryTestClass()
+        {
+            var resolver = new DefaultContractResolver();
+            var contract = (JsonDictionaryContract)resolver.ResolveContract(typeof(AbstractDictionaryTestClass<string, int>));
+
+            Assert.IsFalse(contract.IsInstantiable);
+            Assert.IsNull(contract.DefaultCreator);
+            Assert.IsFalse(contract.HasParametrizedCreator);
+
+            ExceptionAssert.Throws<JsonSerializationException>(() => JsonConvert.DeserializeObject<AbstractDictionaryTestClass<string, int>>(@"{key1:1,key2:2}", new JsonSerializerSettings
+            {
+                ContractResolver = resolver
+            }), "Could not create an instance of type Newtonsoft.Json.Tests.Serialization.AbstractDictionaryTestClass`2[System.String,System.Int32]. Type is an interface or abstract class and cannot be instantiated. Path 'key1', line 1, position 6.");
+
+            contract.DefaultCreator = () => new AbstractImplementationDictionaryTestClass<string, int>();
+
+            var d = JsonConvert.DeserializeObject<AbstractDictionaryTestClass<string, int>>(@"{key1:1,key2:2}", new JsonSerializerSettings
+            {
+                ContractResolver = resolver
+            });
+
+            Assert.AreEqual(2, d.Count);
+            Assert.AreEqual(1, d["key1"]);
+            Assert.AreEqual(2, d["key2"]);
+        }
+
+        [Test]
         public void SerializeWithEscapedPropertyName()
         {
             string json = JsonConvert.SerializeObject(
@@ -118,7 +297,10 @@ namespace BESSy.Json.Tests.Serialization
                 },
                 new JsonSerializerSettings
                 {
-                    ContractResolver = new EscapedPropertiesContractResolver()
+                    ContractResolver = new EscapedPropertiesContractResolver
+                    {
+                        PropertySuffix = @"-'-""-"
+                    }
                 });
 
             Assert.AreEqual(@"{""AddressLine1-'-\""-"":""value!""}", json);
@@ -128,6 +310,94 @@ namespace BESSy.Json.Tests.Serialization
             reader.Read();
 
             Assert.AreEqual(@"AddressLine1-'-""-", reader.Value);
+        }
+
+        [Test]
+        public void SerializeWithHtmlEscapedPropertyName()
+        {
+            string json = JsonConvert.SerializeObject(
+                new AddressWithDataMember
+                {
+                    AddressLine1 = "value!"
+                },
+                new JsonSerializerSettings
+                {
+                    ContractResolver = new EscapedPropertiesContractResolver
+                    {
+                        PropertyPrefix = "<b>",
+                        PropertySuffix = "</b>"
+                    },
+                    StringEscapeHandling = StringEscapeHandling.EscapeHtml
+                });
+
+            Assert.AreEqual(@"{""\u003cb\u003eAddressLine1\u003c/b\u003e"":""value!""}", json);
+
+            JsonTextReader reader = new JsonTextReader(new StringReader(json));
+            reader.Read();
+            reader.Read();
+
+            Assert.AreEqual(@"<b>AddressLine1</b>", reader.Value);
+        }
+
+        [Test]
+        public void CalculatingPropertyNameEscapedSkipping()
+        {
+            JsonProperty p = new JsonProperty { PropertyName = "abc" };
+            Assert.IsTrue(p._skipPropertyNameEscape);
+
+            p = new JsonProperty { PropertyName = "123" };
+            Assert.IsTrue(p._skipPropertyNameEscape);
+
+            p = new JsonProperty { PropertyName = "._-" };
+            Assert.IsTrue(p._skipPropertyNameEscape);
+
+            p = new JsonProperty { PropertyName = "!@#" };
+            Assert.IsTrue(p._skipPropertyNameEscape);
+
+            p = new JsonProperty { PropertyName = "$%^" };
+            Assert.IsTrue(p._skipPropertyNameEscape);
+
+            p = new JsonProperty { PropertyName = "?*(" };
+            Assert.IsTrue(p._skipPropertyNameEscape);
+
+            p = new JsonProperty { PropertyName = ")_+" };
+            Assert.IsTrue(p._skipPropertyNameEscape);
+
+            p = new JsonProperty { PropertyName = "=:," };
+            Assert.IsTrue(p._skipPropertyNameEscape);
+
+            p = new JsonProperty { PropertyName = null };
+            Assert.IsTrue(p._skipPropertyNameEscape);
+
+            p = new JsonProperty { PropertyName = "&" };
+            Assert.IsFalse(p._skipPropertyNameEscape);
+
+            p = new JsonProperty { PropertyName = "<" };
+            Assert.IsFalse(p._skipPropertyNameEscape);
+
+            p = new JsonProperty { PropertyName = ">" };
+            Assert.IsFalse(p._skipPropertyNameEscape);
+
+            p = new JsonProperty { PropertyName = "'" };
+            Assert.IsFalse(p._skipPropertyNameEscape);
+
+            p = new JsonProperty { PropertyName = @"""" };
+            Assert.IsFalse(p._skipPropertyNameEscape);
+
+            p = new JsonProperty { PropertyName = Environment.NewLine };
+            Assert.IsFalse(p._skipPropertyNameEscape);
+
+            p = new JsonProperty { PropertyName = "\0" };
+            Assert.IsFalse(p._skipPropertyNameEscape);
+
+            p = new JsonProperty { PropertyName = "\n" };
+            Assert.IsFalse(p._skipPropertyNameEscape);
+
+            p = new JsonProperty { PropertyName = "\v" };
+            Assert.IsFalse(p._skipPropertyNameEscape);
+
+            p = new JsonProperty { PropertyName = "\u00B9" };
+            Assert.IsFalse(p._skipPropertyNameEscape);
         }
 
 #if !NET20
@@ -151,6 +421,74 @@ namespace BESSy.Json.Tests.Serialization
         }
 
         [Test]
+        public void ParametrizedCreator()
+        {
+            var resolver = new DefaultContractResolver();
+            var contract = (JsonObjectContract)resolver.ResolveContract(typeof(PublicParametizedConstructorWithPropertyNameConflictWithAttribute));
+
+            Assert.IsNull(contract.DefaultCreator);
+            Assert.IsNotNull(contract.ParametrizedCreator);
+#pragma warning disable 618
+            Assert.AreEqual(contract.ParametrizedConstructor, typeof(PublicParametizedConstructorWithPropertyNameConflictWithAttribute).GetConstructor(new[] { typeof(string) }));
+#pragma warning restore 618
+            Assert.AreEqual(1, contract.CreatorParameters.Count);
+            Assert.AreEqual("name", contract.CreatorParameters[0].PropertyName);
+
+#pragma warning disable 618
+            contract.ParametrizedConstructor = null;
+#pragma warning restore 618
+            Assert.IsNull(contract.ParametrizedCreator);
+        }
+
+        [Test]
+        public void OverrideCreator()
+        {
+            var resolver = new DefaultContractResolver();
+            var contract = (JsonObjectContract)resolver.ResolveContract(typeof(MultipleParamatrizedConstructorsJsonConstructor));
+
+            Assert.IsNull(contract.DefaultCreator);
+            Assert.IsNotNull(contract.OverrideCreator);
+#pragma warning disable 618
+            Assert.AreEqual(contract.OverrideConstructor, typeof(MultipleParamatrizedConstructorsJsonConstructor).GetConstructor(new[] { typeof(string), typeof(int) }));
+#pragma warning restore 618
+            Assert.AreEqual(2, contract.CreatorParameters.Count);
+            Assert.AreEqual("Value", contract.CreatorParameters[0].PropertyName);
+            Assert.AreEqual("Age", contract.CreatorParameters[1].PropertyName);
+
+#pragma warning disable 618
+            contract.OverrideConstructor = null;
+#pragma warning restore 618
+            Assert.IsNull(contract.OverrideCreator);
+        }
+
+        [Test]
+        public void CustomOverrideCreator()
+        {
+            var resolver = new DefaultContractResolver();
+            var contract = (JsonObjectContract)resolver.ResolveContract(typeof(MultipleParamatrizedConstructorsJsonConstructor));
+
+            bool ensureCustomCreatorCalled = false;
+
+            contract.OverrideCreator = args =>
+            {
+                ensureCustomCreatorCalled = true;
+                return new MultipleParamatrizedConstructorsJsonConstructor((string) args[0], (int) args[1]);
+            };
+#pragma warning disable 618
+            Assert.IsNull(contract.OverrideConstructor);
+#pragma warning restore 618
+
+            var o = JsonConvert.DeserializeObject<MultipleParamatrizedConstructorsJsonConstructor>("{Value:'value!', Age:1}", new JsonSerializerSettings
+            {
+                ContractResolver = resolver
+            });
+
+            Assert.AreEqual("value!", o.Value);
+            Assert.AreEqual(1, o.Age);
+            Assert.IsTrue(ensureCustomCreatorCalled);
+        }
+
+        [Test]
         public void SerializeInterface()
         {
             Employee employee = new Employee
@@ -165,7 +503,7 @@ namespace BESSy.Json.Tests.Serialization
             string iPersonJson = JsonConvert.SerializeObject(employee, Formatting.Indented,
                 new JsonSerializerSettings { ContractResolver = new IPersonContractResolver() });
 
-            Assert.AreEqual(@"{
+            StringAssert.AreEqual(@"{
   ""FirstName"": ""Maurice"",
   ""LastName"": ""Moss"",
   ""BirthDate"": ""1977-12-30T01:01:01Z""
@@ -201,19 +539,19 @@ namespace BESSy.Json.Tests.Serialization
             //   "BookPrice": 16.19
             // }
 
-            Assert.AreEqual(@"{
+            StringAssert.AreEqual(@"{
   ""AuthorName"": ""Brandon Sanderson"",
   ""AuthorAge"": 34,
   ""AuthorCountry"": ""United States of America""
 }", startingWithA);
 
-            Assert.AreEqual(@"{
+            StringAssert.AreEqual(@"{
   ""BookName"": ""The Gathering Storm"",
   ""BookPrice"": 16.19
 }", startingWithB);
         }
 
-#if !(NETFX_CORE || PORTABLE || PORTABLE40)
+#if !(NETFX_CORE || PORTABLE || ASPNETCORE50 || PORTABLE40)
 #pragma warning disable 618
         [Test]
         public void SerializeCompilerGeneratedMembers()
@@ -234,7 +572,7 @@ namespace BESSy.Json.Tests.Serialization
             string skipCompilerGeneratedJson = JsonConvert.SerializeObject(structTest, Formatting.Indented,
                 new JsonSerializerSettings { ContractResolver = skipCompilerGeneratedResolver });
 
-            Assert.AreEqual(@"{
+            StringAssert.AreEqual(@"{
   ""StringField"": ""Field"",
   ""IntField"": 1,
   ""StringProperty"": ""Property"",
@@ -250,7 +588,7 @@ namespace BESSy.Json.Tests.Serialization
             string includeCompilerGeneratedJson = JsonConvert.SerializeObject(structTest, Formatting.Indented,
                 new JsonSerializerSettings { ContractResolver = includeCompilerGeneratedResolver });
 
-            Assert.AreEqual(@"{
+            StringAssert.AreEqual(@"{
   ""StringField"": ""Field"",
   ""IntField"": 1,
   ""<StringProperty>k__BackingField"": ""Property"",

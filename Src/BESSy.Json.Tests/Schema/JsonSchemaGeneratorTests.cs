@@ -31,12 +31,16 @@ using BESSy.Json.Converters;
 using BESSy.Json.Serialization;
 using BESSy.Json.Tests.TestObjects;
 using BESSy.Json.Utilities;
-#if !NETFX_CORE
-using NUnit.Framework;
-#else
+#if NETFX_CORE
 using Microsoft.VisualStudio.TestPlatform.UnitTestFramework;
 using TestFixture = Microsoft.VisualStudio.TestPlatform.UnitTestFramework.TestClassAttribute;
 using Test = Microsoft.VisualStudio.TestPlatform.UnitTestFramework.TestMethodAttribute;
+#elif ASPNETCORE50
+using Xunit;
+using Test = Xunit.FactAttribute;
+using Assert = Newtonsoft.Json.Tests.XUnitAssert;
+#else
+using NUnit.Framework;
 #endif
 using BESSy.Json.Schema;
 using System.IO;
@@ -47,7 +51,6 @@ using Extensions = BESSy.Json.Schema.Extensions;
 using BESSy.Json.Utilities.LinqBridge;
 #else
 using System.Linq;
-
 #endif
 
 namespace BESSy.Json.Tests.Schema
@@ -63,7 +66,7 @@ namespace BESSy.Json.Tests.Schema
 
             string json = schema.ToString();
 
-            Assert.AreEqual(@"{
+            StringAssert.AreEqual(@"{
   ""type"": ""object"",
   ""additionalProperties"": {
     ""type"": [
@@ -91,7 +94,7 @@ namespace BESSy.Json.Tests.Schema
             Assert.IsTrue(o.IsValid(schema));
         }
 
-#if !(NETFX_CORE || PORTABLE || PORTABLE40)
+#if !(NETFX_CORE || PORTABLE || ASPNETCORE50 || PORTABLE40)
         [Test]
         public void Generate_DefaultValueAttributeTestClass()
         {
@@ -100,7 +103,7 @@ namespace BESSy.Json.Tests.Schema
 
             string json = schema.ToString();
 
-            Assert.AreEqual(@"{
+            StringAssert.AreEqual(@"{
   ""description"": ""DefaultValueAttributeTestClass description!"",
   ""type"": ""object"",
   ""additionalProperties"": false,
@@ -131,7 +134,7 @@ namespace BESSy.Json.Tests.Schema
 
             string json = schema.ToString();
 
-            Assert.AreEqual(@"{
+            StringAssert.AreEqual(@"{
   ""id"": ""Person"",
   ""title"": ""Title!"",
   ""description"": ""JsonObjectAttribute description!"",
@@ -164,7 +167,7 @@ namespace BESSy.Json.Tests.Schema
 
             string json = schema.ToString();
 
-            Assert.AreEqual(@"{
+            StringAssert.AreEqual(@"{
   ""type"": ""object"",
   ""properties"": {
     ""Id"": {
@@ -261,11 +264,10 @@ namespace BESSy.Json.Tests.Schema
         public void CircularReferenceError()
         {
             ExceptionAssert.Throws<Exception>(@"Unresolved circular reference for type 'BESSy.Json.Tests.TestObjects.CircularReferenceClass'. Explicitly define an Id for the type using a JsonObject/JsonArray attribute or automatically generate a type Id using the UndefinedSchemaIdHandling property.",
-                () =>
-                {
-                    JsonSchemaGenerator generator = new JsonSchemaGenerator();
-                    generator.Generate(typeof(CircularReferenceClass));
-                });
+            {
+                JsonSchemaGenerator generator = new JsonSchemaGenerator();
+                generator.Generate(typeof(CircularReferenceClass));
+            }, @"Unresolved circular reference for type 'Newtonsoft.Json.Tests.TestObjects.CircularReferenceClass'. Explicitly define an Id for the type using a JsonObject/JsonArray attribute or automatically generate a type Id using the UndefinedSchemaIdHandling property.");
         }
 
         [Test]
@@ -311,7 +313,7 @@ namespace BESSy.Json.Tests.Schema
             Assert.IsTrue(v.IsValid(schema));
         }
 
-#if !(NETFX_CORE || PORTABLE || PORTABLE40)
+#if !(NETFX_CORE || PORTABLE || ASPNETCORE50 || PORTABLE40)
         [Test]
         public void GenerateSchemaForISerializable()
         {
@@ -326,7 +328,7 @@ namespace BESSy.Json.Tests.Schema
         }
 #endif
 
-#if !(NETFX_CORE || PORTABLE || PORTABLE40)
+#if !(NETFX_CORE || PORTABLE || ASPNETCORE50 || PORTABLE40)
         [Test]
         public void GenerateSchemaForDBNull()
         {
@@ -371,7 +373,7 @@ namespace BESSy.Json.Tests.Schema
             generator.UndefinedSchemaIdHandling = UndefinedSchemaIdHandling.UseTypeName;
             generator.ContractResolver = new CustomDirectoryInfoMapper
             {
-#if !(NETFX_CORE || PORTABLE)
+#if !(NETFX_CORE || PORTABLE || ASPNETCORE50)
                 IgnoreSerializableAttribute = true
 #endif
             };
@@ -380,7 +382,7 @@ namespace BESSy.Json.Tests.Schema
 
             string json = schema.ToString();
 
-            Assert.AreEqual(@"{
+            StringAssert.AreEqual(@"{
   ""id"": ""System.IO.DirectoryInfo"",
   ""required"": true,
   ""type"": [
@@ -455,7 +457,7 @@ namespace BESSy.Json.Tests.Schema
             serializer.Converters.Add(new IsoDateTimeConverter());
             serializer.ContractResolver = new CustomDirectoryInfoMapper
             {
-#if !(NETFX_CORE || PORTABLE)
+#if !(NETFX_CORE || PORTABLE || ASPNETCORE50)
                 IgnoreSerializableInterface = true
 #endif
             };
@@ -475,7 +477,7 @@ namespace BESSy.Json.Tests.Schema
             generator.UndefinedSchemaIdHandling = UndefinedSchemaIdHandling.UseTypeName;
             generator.ContractResolver = new CamelCasePropertyNamesContractResolver()
             {
-#if !(NETFX_CORE || PORTABLE || PORTABLE40)
+#if !(NETFX_CORE || PORTABLE || ASPNETCORE50 || PORTABLE40)
                 IgnoreSerializableAttribute = true
 #endif
             };
@@ -484,7 +486,7 @@ namespace BESSy.Json.Tests.Schema
 
             string json = schema.ToString();
 
-            Assert.AreEqual(@"{
+            StringAssert.AreEqual(@"{
   ""id"": ""System.Version"",
   ""type"": [
     ""object"",
@@ -520,7 +522,7 @@ namespace BESSy.Json.Tests.Schema
 }", json);
         }
 
-#if !(NETFX_CORE || PORTABLE || PORTABLE40)
+#if !(NETFX_CORE || PORTABLE || ASPNETCORE50 || PORTABLE40)
         [Test]
         public void GenerateSchemaSerializable()
         {
@@ -535,7 +537,7 @@ namespace BESSy.Json.Tests.Schema
 
             string json = schema.ToString();
 
-            Assert.AreEqual(@"{
+            StringAssert.AreEqual(@"{
   ""id"": ""System.Version"",
   ""type"": [
     ""object"",
@@ -575,7 +577,7 @@ namespace BESSy.Json.Tests.Schema
 
             Assert.AreEqual(0, errors.Count);
 
-            Assert.AreEqual(@"{
+            StringAssert.AreEqual(@"{
   ""_Major"": 1,
   ""_Minor"": 2,
   ""_Build"": 3,
@@ -610,7 +612,7 @@ namespace BESSy.Json.Tests.Schema
 
             string json = schema.ToString();
 
-            Assert.AreEqual(@"{
+            StringAssert.AreEqual(@"{
   ""type"": ""object"",
   ""properties"": {
     ""x"": {
@@ -648,7 +650,7 @@ namespace BESSy.Json.Tests.Schema
             JsonSchema jsonSchema = jsonSchemaGenerator.Generate(typeof(CircularReferenceClass));
             string json = jsonSchema.ToString();
 
-            Assert.AreEqual(@"{
+            StringAssert.AreEqual(@"{
   ""id"": ""BESSy.Json.Tests.TestObjects.CircularReferenceClass"",
   ""type"": [
     ""object"",
@@ -675,7 +677,7 @@ namespace BESSy.Json.Tests.Schema
             JsonSchema jsonSchema = jsonSchemaGenerator.Generate(typeof(JsonPropertyWithHandlingValues));
             string json = jsonSchema.ToString();
 
-            Assert.AreEqual(@"{
+            StringAssert.AreEqual(@"{
   ""id"": ""BESSy.Json.Tests.TestObjects.JsonPropertyWithHandlingValues"",
   ""required"": true,
   ""type"": [
@@ -747,7 +749,7 @@ namespace BESSy.Json.Tests.Schema
             JsonSchema jsonSchema = jsonSchemaGenerator.Generate(typeof(NullableInt32TestClass));
             string json = jsonSchema.ToString();
 
-            Assert.AreEqual(@"{
+            StringAssert.AreEqual(@"{
   ""type"": ""object"",
   ""properties"": {
     ""Value"": {
@@ -774,6 +776,7 @@ namespace BESSy.Json.Tests.Schema
             public SortTypeFlagAsString y;
         }
 
+#if !ASPNETCORE50
         [Test]
         [Ignore]
         public void GenerateSchemaWithStringEnum()
@@ -800,6 +803,7 @@ namespace BESSy.Json.Tests.Schema
   }
 }", json);
         }
+#endif
     }
 
     public class NullableInt32TestClass

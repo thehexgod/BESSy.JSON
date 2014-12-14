@@ -29,12 +29,16 @@ using System.Collections.Generic;
 using System.Numerics;
 #endif
 using System.Text;
-#if !NETFX_CORE
-using NUnit.Framework;
-#else
+#if NETFX_CORE
 using Microsoft.VisualStudio.TestPlatform.UnitTestFramework;
 using TestFixture = Microsoft.VisualStudio.TestPlatform.UnitTestFramework.TestClassAttribute;
 using Test = Microsoft.VisualStudio.TestPlatform.UnitTestFramework.TestMethodAttribute;
+#elif ASPNETCORE50
+using Xunit;
+using Test = Xunit.FactAttribute;
+using Assert = Newtonsoft.Json.Tests.XUnitAssert;
+#else
+using NUnit.Framework;
 #endif
 using BESSy.Json;
 using System.IO;
@@ -88,7 +92,7 @@ namespace BESSy.Json.Tests.Linq
             Assert.AreEqual(0.99, (double)root[5]);
             Assert.AreEqual(0.000000000000000001d, (double)root[6]);
             Assert.AreEqual(0.000000000000000001m, (decimal)root[7]);
-            Assert.AreEqual(string.Empty, (string)root[8]);
+            Assert.AreEqual(null, (string)root[8]);
             Assert.AreEqual("This is a string.", (string)root[9]);
             Assert.AreEqual(null, ((JValue)root[10]).Value);
             Assert.AreEqual(null, ((JValue)root[11]).Value);
@@ -120,7 +124,7 @@ namespace BESSy.Json.Tests.Linq
                 jsonWriter.WriteValue("DVD read/writer");
                 Assert.AreEqual(WriteState.Array, jsonWriter.WriteState);
 
-#if !(NET20 || NET35 || PORTABLE || PORTABLE40)
+#if !(NET20 || NET35 || PORTABLE || ASPNETCORE50 || PORTABLE40)
                 jsonWriter.WriteValue(new BigInteger(123));
                 Assert.AreEqual(WriteState.Array, jsonWriter.WriteState);
 #endif
@@ -145,11 +149,11 @@ namespace BESSy.Json.Tests.Linq
             writer.WriteComment("fail");
             writer.WriteEndArray();
 
-            Assert.AreEqual(@"[
+            StringAssert.AreEqual(@"[
   /*fail*/]", writer.Token.ToString());
         }
 
-#if !(NET20 || NET35 || PORTABLE || PORTABLE40)
+#if !(NET20 || NET35 || PORTABLE || ASPNETCORE50 || PORTABLE40)
         [Test]
         public void WriteBigInteger()
         {
@@ -164,7 +168,7 @@ namespace BESSy.Json.Tests.Linq
             Assert.AreEqual(new BigInteger(123), i.Value);
             Assert.AreEqual(JTokenType.Integer, i.Type);
 
-            Assert.AreEqual(@"[
+            StringAssert.AreEqual(@"[
   123
 ]", writer.Token.ToString());
         }
@@ -183,7 +187,7 @@ namespace BESSy.Json.Tests.Linq
             // this is a bug. write raw shouldn't be autocompleting like this
             // hard to fix without introducing Raw and RawValue token types
             // meh
-            Assert.AreEqual(@"[
+            StringAssert.AreEqual(@"[
   fail,
   fail
 ]", writer.Token.ToString());
@@ -199,7 +203,7 @@ namespace BESSy.Json.Tests.Linq
             writer.WriteRawValue("fail");
             writer.WriteEndArray();
 
-            Assert.AreEqual(@"[
+            StringAssert.AreEqual(@"[
   fail,
   fail
 ]", writer.Token.ToString());

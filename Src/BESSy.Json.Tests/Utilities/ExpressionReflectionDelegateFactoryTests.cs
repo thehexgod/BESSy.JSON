@@ -23,16 +23,22 @@
 // OTHER DEALINGS IN THE SOFTWARE.
 #endregion
 
-#if !(PORTABLE40 || NET20 || NET35)
+using System.Collections.Generic;
+#if !(NET20 || NET35)
+using System.Linq;
 using System;
 using System.Diagnostics;
 using System.Reflection;
-#if !NETFX_CORE
-using NUnit.Framework;
-#else
+#if NETFX_CORE
 using Microsoft.VisualStudio.TestPlatform.UnitTestFramework;
 using TestFixture = Microsoft.VisualStudio.TestPlatform.UnitTestFramework.TestClassAttribute;
 using Test = Microsoft.VisualStudio.TestPlatform.UnitTestFramework.TestMethodAttribute;
+#elif ASPNETCORE50
+using Xunit;
+using Test = Xunit.FactAttribute;
+using Assert = Newtonsoft.Json.Tests.XUnitAssert;
+#else
+using NUnit.Framework;
 #endif
 using BESSy.Json.Serialization;
 using BESSy.Json.Utilities;
@@ -44,6 +50,47 @@ namespace BESSy.Json.Tests.Utilities
     [TestFixture]
     public class ExpressionReflectionDelegateFactoryTests : TestFixtureBase
     {
+        [Test]
+        public void ConstructorWithRefString()
+        {
+            ConstructorInfo constructor = TestReflectionUtils.GetConstructors(typeof(OutAndRefTestClass)).Single(c => c.GetParameters().Count() == 1);
+
+            var creator = ExpressionReflectionDelegateFactory.Instance.CreateParametrizedConstructor(constructor);
+
+            object[] args = new object[] { "Input" };
+            OutAndRefTestClass o = (OutAndRefTestClass)creator(args);
+            Assert.IsNotNull(o);
+            Assert.AreEqual("Input", o.Input);
+        }
+
+        [Test]
+        public void ConstructorWithRefStringAndOutBool()
+        {
+            ConstructorInfo constructor = TestReflectionUtils.GetConstructors(typeof(OutAndRefTestClass)).Single(c => c.GetParameters().Count() == 2);
+
+            var creator = ExpressionReflectionDelegateFactory.Instance.CreateParametrizedConstructor(constructor);
+
+            object[] args = new object[] { "Input", null };
+            OutAndRefTestClass o = (OutAndRefTestClass)creator(args);
+            Assert.IsNotNull(o);
+            Assert.AreEqual("Input", o.Input);
+        }
+
+        [Test]
+        public void ConstructorWithRefStringAndRefBoolAndRefBool()
+        {
+            ConstructorInfo constructor = TestReflectionUtils.GetConstructors(typeof(OutAndRefTestClass)).Single(c => c.GetParameters().Count() == 3);
+
+            var creator = ExpressionReflectionDelegateFactory.Instance.CreateParametrizedConstructor(constructor);
+
+            object[] args = new object[] { "Input", true, null };
+            OutAndRefTestClass o = (OutAndRefTestClass)creator(args);
+            Assert.IsNotNull(o);
+            Assert.AreEqual("Input", o.Input);
+            Assert.AreEqual(true, o.B1);
+            Assert.AreEqual(false, o.B2);
+        }
+
         [Test]
         public void DefaultConstructor()
         {
@@ -65,19 +112,21 @@ namespace BESSy.Json.Tests.Utilities
         [Test]
         public void DefaultConstructor_Abstract()
         {
-            ExceptionAssert.Throws<Exception>("Cannot create an abstract class.",
-                () =>
-                {
+            ExceptionAssert.Throws<Exception>(
+                () => {
                     Func<object> create = ExpressionReflectionDelegateFactory.Instance.CreateDefaultConstructor<object>(typeof(Type));
 
                     create();
+                }, new [] { 
+                    "Cannot create an abstract class.",
+                    "Cannot create an abstract class 'System.Type'." // mono
                 });
         }
 
         [Test]
         public void CreatePropertySetter()
         {
-            Action<object, object> setter = ExpressionReflectionDelegateFactory.Instance.CreateSet<object>(typeof(Movie).GetProperty("Name"));
+            Action<object, object> setter = ExpressionReflectionDelegateFactory.Instance.CreateSet<object>(TestReflectionUtils.GetProperty(typeof(Movie), "Name"));
 
             Movie m = new Movie();
 
@@ -89,7 +138,7 @@ namespace BESSy.Json.Tests.Utilities
         [Test]
         public void CreatePropertyGetter()
         {
-            Func<object, object> getter = ExpressionReflectionDelegateFactory.Instance.CreateGet<object>(typeof(Movie).GetProperty("Name"));
+            Func<object, object> getter = ExpressionReflectionDelegateFactory.Instance.CreateGet<object>(TestReflectionUtils.GetProperty(typeof(Movie), "Name"));
 
             Movie m = new Movie();
             m.Name = "OH HAI!";
@@ -102,13 +151,13 @@ namespace BESSy.Json.Tests.Utilities
         [Test]
         public void CreateMethodCall()
         {
-            MethodCall<object, object> method = ExpressionReflectionDelegateFactory.Instance.CreateMethodCall<object>(typeof(Movie).GetMethod("ToString"));
+            MethodCall<object, object> method = ExpressionReflectionDelegateFactory.Instance.CreateMethodCall<object>(TestReflectionUtils.GetMethod(typeof(Movie), "ToString"));
 
             Movie m = new Movie();
             object result = method(m);
             Assert.AreEqual("BESSy.Json.Tests.TestObjects.Movie", result);
 
-            method = ExpressionReflectionDelegateFactory.Instance.CreateMethodCall<object>(typeof(Movie).GetMethod("Equals"));
+            method = ExpressionReflectionDelegateFactory.Instance.CreateMethodCall<object>(TestReflectionUtils.GetMethod(typeof(Movie), "Equals"));
 
             result = method(m, m);
             Assert.AreEqual(true, result);
@@ -136,12 +185,12 @@ namespace BESSy.Json.Tests.Utilities
             StaticTestClass.StringField = "Field!";
             StaticTestClass.StringProperty = "Property!";
 
-            Func<object, object> getter = ExpressionReflectionDelegateFactory.Instance.CreateGet<object>(typeof(StaticTestClass).GetProperty("StringProperty"));
+            Func<object, object> getter = ExpressionReflectionDelegateFactory.Instance.CreateGet<object>(TestReflectionUtils.GetProperty(typeof(StaticTestClass), "StringProperty"));
 
             object v = getter(null);
             Assert.AreEqual(StaticTestClass.StringProperty, v);
 
-            getter = ExpressionReflectionDelegateFactory.Instance.CreateGet<object>(typeof(StaticTestClass).GetField("StringField"));
+            getter = ExpressionReflectionDelegateFactory.Instance.CreateGet<object>(TestReflectionUtils.GetField(typeof(StaticTestClass), "StringField"));
 
             v = getter(null);
             Assert.AreEqual(StaticTestClass.StringField, v);
@@ -150,12 +199,12 @@ namespace BESSy.Json.Tests.Utilities
         [Test]
         public void SetStatic()
         {
-            Action<object, object> setter = ExpressionReflectionDelegateFactory.Instance.CreateSet<object>(typeof(StaticTestClass).GetProperty("StringProperty"));
+            Action<object, object> setter = ExpressionReflectionDelegateFactory.Instance.CreateSet<object>(TestReflectionUtils.GetProperty(typeof(StaticTestClass), "StringProperty"));
 
             setter(null, "New property!");
             Assert.AreEqual("New property!", StaticTestClass.StringProperty);
 
-            setter = ExpressionReflectionDelegateFactory.Instance.CreateSet<object>(typeof(StaticTestClass).GetField("StringField"));
+            setter = ExpressionReflectionDelegateFactory.Instance.CreateSet<object>(TestReflectionUtils.GetField(typeof(StaticTestClass), "StringField"));
 
             setter(null, "New field!");
             Assert.AreEqual("New field!", StaticTestClass.StringField);
@@ -178,12 +227,12 @@ namespace BESSy.Json.Tests.Utilities
                 StringField = "String!"
             };
 
-            Func<object, object> getter = ExpressionReflectionDelegateFactory.Instance.CreateGet<object>(typeof(FieldsTestClass).GetField("StringField"));
+            Func<object, object> getter = ExpressionReflectionDelegateFactory.Instance.CreateGet<object>(TestReflectionUtils.GetField(typeof(FieldsTestClass), "StringField"));
 
             object value = getter(c);
             Assert.AreEqual("String!", value);
 
-            getter = ExpressionReflectionDelegateFactory.Instance.CreateGet<object>(typeof(FieldsTestClass).GetField("BoolField"));
+            getter = ExpressionReflectionDelegateFactory.Instance.CreateGet<object>(TestReflectionUtils.GetField(typeof(FieldsTestClass), "BoolField"));
 
             value = getter(c);
             Assert.AreEqual(true, value);
@@ -194,7 +243,7 @@ namespace BESSy.Json.Tests.Utilities
         {
             FieldsTestClass c = new FieldsTestClass();
 
-            Action<object, object> setter = ExpressionReflectionDelegateFactory.Instance.CreateSet<object>(typeof(FieldsTestClass).GetField("IntReadOnlyField"));
+            Action<object, object> setter = ExpressionReflectionDelegateFactory.Instance.CreateSet<object>(TestReflectionUtils.GetField(typeof(FieldsTestClass), "IntReadOnlyField"));
 
             setter(c, int.MinValue);
             Assert.AreEqual(int.MinValue, c.IntReadOnlyField);
@@ -205,12 +254,12 @@ namespace BESSy.Json.Tests.Utilities
         {
             FieldsTestClass c = new FieldsTestClass();
 
-            Action<object, object> setter = ExpressionReflectionDelegateFactory.Instance.CreateSet<object>(typeof(FieldsTestClass).GetField("StringField"));
+            Action<object, object> setter = ExpressionReflectionDelegateFactory.Instance.CreateSet<object>(TestReflectionUtils.GetField(typeof(FieldsTestClass), "StringField"));
 
             setter(c, "String!");
             Assert.AreEqual("String!", c.StringField);
 
-            setter = ExpressionReflectionDelegateFactory.Instance.CreateSet<object>(typeof(FieldsTestClass).GetField("BoolField"));
+            setter = ExpressionReflectionDelegateFactory.Instance.CreateSet<object>(TestReflectionUtils.GetField(typeof(FieldsTestClass), "BoolField"));
 
             setter(c, true);
             Assert.AreEqual(true, c.BoolField);
@@ -221,12 +270,12 @@ namespace BESSy.Json.Tests.Utilities
         {
             object structTest = new StructTest();
 
-            Action<object, object> setter = ExpressionReflectionDelegateFactory.Instance.CreateSet<object>(typeof(StructTest).GetProperty("StringProperty"));
+            Action<object, object> setter = ExpressionReflectionDelegateFactory.Instance.CreateSet<object>(TestReflectionUtils.GetProperty(typeof(StructTest), "StringProperty"));
 
             setter(structTest, "Hi1");
             Assert.AreEqual("Hi1", ((StructTest)structTest).StringProperty);
 
-            setter = ExpressionReflectionDelegateFactory.Instance.CreateSet<object>(typeof(StructTest).GetField("StringField"));
+            setter = ExpressionReflectionDelegateFactory.Instance.CreateSet<object>(TestReflectionUtils.GetField(typeof(StructTest), "StringField"));
 
             setter(structTest, "Hi2");
             Assert.AreEqual("Hi2", ((StructTest)structTest).StringField);
@@ -236,14 +285,17 @@ namespace BESSy.Json.Tests.Utilities
         public void CreateGetWithBadObjectTarget()
         {
             ExceptionAssert.Throws<InvalidCastException>("Unable to cast object of type 'BESSy.Json.Tests.TestObjects.Person' to type 'BESSy.Json.Tests.TestObjects.Movie'.",
-                () =>
-                {
+                () => {
                     Person p = new Person();
                     p.Name = "Hi";
 
-                    Func<object, object> setter = ExpressionReflectionDelegateFactory.Instance.CreateGet<object>(typeof(Movie).GetProperty("Name"));
+                    Func<object, object> setter = ExpressionReflectionDelegateFactory.Instance.CreateGet<object>(TestReflectionUtils.GetProperty(typeof(Movie), "Name"));
 
                     setter(p);
+                },
+                new [] {
+                    "Unable to cast object of type 'Newtonsoft.Json.Tests.TestObjects.Person' to type 'Newtonsoft.Json.Tests.TestObjects.Movie'.",
+                    "Cannot cast from source type to destination type." // mono
                 });
         }
 
@@ -251,12 +303,11 @@ namespace BESSy.Json.Tests.Utilities
         public void CreateSetWithBadObjectTarget()
         {
             ExceptionAssert.Throws<InvalidCastException>("Unable to cast object of type 'BESSy.Json.Tests.TestObjects.Person' to type 'BESSy.Json.Tests.TestObjects.Movie'.",
-                () =>
-                {
+                () => {
                     Person p = new Person();
                     Movie m = new Movie();
 
-                    Action<object, object> setter = ExpressionReflectionDelegateFactory.Instance.CreateSet<object>(typeof(Movie).GetProperty("Name"));
+                    Action<object, object> setter = ExpressionReflectionDelegateFactory.Instance.CreateSet<object>(TestReflectionUtils.GetProperty(typeof(Movie), "Name"));
 
                     setter(m, "Hi");
 
@@ -265,20 +316,26 @@ namespace BESSy.Json.Tests.Utilities
                     setter(p, "Hi");
 
                     Assert.AreEqual(p.Name, "Hi");
+                },
+                new [] {
+                    "Unable to cast object of type 'Newtonsoft.Json.Tests.TestObjects.Person' to type 'Newtonsoft.Json.Tests.TestObjects.Movie'.",
+                    "Cannot cast from source type to destination type." // mono
                 });
         }
 
         [Test]
         public void CreateSetWithBadObjectValue()
         {
-            ExceptionAssert.Throws<InvalidCastException>("Unable to cast object of type 'System.Version' to type 'System.String'.",
-                () =>
-                {
+            ExceptionAssert.Throws<InvalidCastException>(
+                () => {
                     Movie m = new Movie();
 
-                    Action<object, object> setter = ExpressionReflectionDelegateFactory.Instance.CreateSet<object>(typeof(Movie).GetProperty("Name"));
+                    Action<object, object> setter = ExpressionReflectionDelegateFactory.Instance.CreateSet<object>(TestReflectionUtils.GetProperty(typeof(Movie), "Name"));
 
                     setter(m, new Version("1.1.1.1"));
+                }, new [] { 
+                    "Unable to cast object of type 'System.Version' to type 'System.String'.",
+                    "Cannot cast from source type to destination type." //mono
                 });
         }
 
@@ -299,5 +356,4 @@ namespace BESSy.Json.Tests.Utilities
         }
     }
 }
-
 #endif

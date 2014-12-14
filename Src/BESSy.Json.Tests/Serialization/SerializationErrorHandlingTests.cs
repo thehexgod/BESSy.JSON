@@ -35,12 +35,16 @@ using BESSy.Json.Utilities.LinqBridge;
 #else
 using System.Linq;
 #endif
-#if !NETFX_CORE
-using NUnit.Framework;
-#else
+#if NETFX_CORE
 using Microsoft.VisualStudio.TestPlatform.UnitTestFramework;
 using TestFixture = Microsoft.VisualStudio.TestPlatform.UnitTestFramework.TestClassAttribute;
 using Test = Microsoft.VisualStudio.TestPlatform.UnitTestFramework.TestMethodAttribute;
+#elif ASPNETCORE50
+using Xunit;
+using Test = Xunit.FactAttribute;
+using Assert = Newtonsoft.Json.Tests.XUnitAssert;
+#else
+using NUnit.Framework;
 #endif
 using System.IO;
 using ErrorEventArgs = BESSy.Json.Serialization.ErrorEventArgs;
@@ -66,10 +70,14 @@ namespace BESSy.Json.Tests.Serialization
   }
 ]";
 
+            var possibleMsgs = new [] {
+                "[1] - Error message for member 1 = An item with the same key has already been added.",
+                "[1] - Error message for member 1 = An element with the same key already exists in the dictionary." // mono
+            };
             VersionKeyedCollection c = JsonConvert.DeserializeObject<VersionKeyedCollection>(json);
             Assert.AreEqual(1, c.Count);
             Assert.AreEqual(1, c.Messages.Count);
-            Assert.AreEqual("[1] - Error message for member 1 = An item with the same key has already been added.", c.Messages[0]);
+            Assert.IsTrue (possibleMsgs.Any (m => m == c.Messages[0]), "Expected One of: " + Environment.NewLine + string.Join (Environment.NewLine, possibleMsgs) + Environment.NewLine + "Was: " + Environment.NewLine + c.Messages[0]);
         }
 
         [Test]
@@ -162,7 +170,7 @@ namespace BESSy.Json.Tests.Serialization
                 }
             });
 
-            Assert.AreEqual(@"[
+            StringAssert.AreEqual(@"[
   [
     [
       {
@@ -224,7 +232,7 @@ namespace BESSy.Json.Tests.Serialization
 
             string json = JsonConvert.SerializeObject(c, Formatting.Indented);
 
-            Assert.AreEqual(@"[
+            StringAssert.AreEqual(@"[
   {
     ""Member"": ""Value1"",
     ""ThrowError"": ""Handle this!"",
@@ -302,7 +310,13 @@ namespace BESSy.Json.Tests.Serialization
 
             Assert.AreEqual(3, errors.Count);
 #if !(NET20 || NET35)
-            Assert.AreEqual("[1] - 1 - The string was not recognized as a valid DateTime. There is an unknown word starting at index 0.", errors[0]);
+            var possibleErrs = new [] {
+                "[1] - 1 - The string was not recognized as a valid DateTime. There is an unknown word starting at index 0.",
+                "[1] - 1 - String was not recognized as a valid DateTime."
+            };
+
+            Assert.IsTrue(possibleErrs.Any (m => m == errors[0]), 
+                "Expected One of: " + string.Join (Environment.NewLine, possibleErrs) + Environment.NewLine + "But was: " + errors[0]);
 #else
       Assert.AreEqual("[1] - 1 - The string was not recognized as a valid DateTime. There is a unknown word starting at index 0.", errors[0]);
 #endif
@@ -363,7 +377,7 @@ namespace BESSy.Json.Tests.Serialization
             //  "Title": "Mister Manager"
             //}
 
-            Assert.AreEqual(@"{
+            StringAssert.AreEqual(@"{
   ""Name"": ""George Michael Bluth"",
   ""Age"": 16,
   ""Title"": ""Mister Manager""
@@ -407,7 +421,7 @@ namespace BESSy.Json.Tests.Serialization
             string json = "{}";
             List<string> errors = new List<string>();
             JsonSerializer serializer = new JsonSerializer();
-            serializer.SpecialPropertyHandling = SpecialPropertyHandling.Default;
+            serializer.MetadataPropertyHandling = MetadataPropertyHandling.Default;
             serializer.Error += delegate(object sender, ErrorEventArgs args)
             {
                 errors.Add(args.ErrorContext.Path + " - " + args.ErrorContext.Member + " - " + args.ErrorContext.Error.Message);
@@ -540,7 +554,7 @@ namespace BESSy.Json.Tests.Serialization
                 "{'badarray':[0,x,2],'goodarray':[0,1,2]}",
                 new JsonSerializerSettings
                 {
-                    SpecialPropertyHandling = SpecialPropertyHandling.Default,
+                    MetadataPropertyHandling = MetadataPropertyHandling.Default,
                     Error = (sender, arg) =>
                     {
                         errors.Add(arg.ErrorContext.Error.Message);
@@ -570,7 +584,7 @@ namespace BESSy.Json.Tests.Serialization
                 JsonSerializer jsonSerializer = JsonSerializer.Create(new JsonSerializerSettings
                 {
                     MaxDepth = maxDepth,
-                    SpecialPropertyHandling = SpecialPropertyHandling.Default
+                    MetadataPropertyHandling = MetadataPropertyHandling.Default
                 });
                 jsonSerializer.Error += (sender, e) =>
                 {
@@ -601,7 +615,7 @@ namespace BESSy.Json.Tests.Serialization
             const int maxDepth = 256;
             using (var jsonTextReader = new JsonTextReader(new StringReader(input)) { MaxDepth = maxDepth })
             {
-                JsonSerializer jsonSerializer = JsonSerializer.Create(new JsonSerializerSettings { MaxDepth = maxDepth, SpecialPropertyHandling = SpecialPropertyHandling.Default });
+                JsonSerializer jsonSerializer = JsonSerializer.Create(new JsonSerializerSettings { MaxDepth = maxDepth, MetadataPropertyHandling = MetadataPropertyHandling.Default });
                 jsonSerializer.Error += (sender, e) =>
                 {
                     errors.Add(e.ErrorContext.Error.Message);
@@ -641,7 +655,7 @@ namespace BESSy.Json.Tests.Serialization
                     errors.Add(e.ErrorContext.Error.Message);
                     e.ErrorContext.Handled = true;
                 },
-                SpecialPropertyHandling = SpecialPropertyHandling.Default
+                MetadataPropertyHandling = MetadataPropertyHandling.Default
             });
             Assert.AreEqual(true, newDynamicObject.Explicit);
 
@@ -718,9 +732,7 @@ namespace BESSy.Json.Tests.Serialization
             JsonTextReader jReader = new JsonTextReader(new StreamReader(stream));
             JsonSerializer s = new JsonSerializer();
 
-            ExceptionAssert.Throws<JsonReaderException>(
-                @"Unterminated string. Expected delimiter: "". Path '', line 1, position 3.",
-                () => { ErrorTestObject obj = s.Deserialize<ErrorTestObject>(jReader); });
+            ExceptionAssert.Throws<JsonReaderException>(() => { ErrorTestObject obj = s.Deserialize<ErrorTestObject>(jReader); }, @"Unterminated string. Expected delimiter: "". Path '', line 1, position 3.");
         }
 
         public class RootThing
@@ -823,9 +835,7 @@ namespace BESSy.Json.Tests.Serialization
             string foo = "{ something: { rootSomethingElse { somethingElse: 0 } } }";
             var reader = new System.IO.StringReader(foo);
 
-            ExceptionAssert.Throws<Exception>(
-                "An error occurred.",
-                () => { serialiser.Deserialize(reader, typeof(Something)); });
+            ExceptionAssert.Throws<Exception>(() => { serialiser.Deserialize(reader, typeof(Something)); }, "An error occurred.");
         }
 
         [Test]
@@ -847,9 +857,7 @@ namespace BESSy.Json.Tests.Serialization
             
             var writer = new System.IO.StringWriter();
 
-            ExceptionAssert.Throws<Exception>(
-                "An error occurred.",
-                () => { serialiser.Serialize(writer, r); });
+            ExceptionAssert.Throws<Exception>(() => { serialiser.Serialize(writer, r); }, "An error occurred.");
         }
 
         [Test]

@@ -25,12 +25,16 @@
 
 using System;
 using BESSy.Json.Tests.TestObjects;
-#if !NETFX_CORE
-using NUnit.Framework;
-#else
+#if NETFX_CORE
 using Microsoft.VisualStudio.TestPlatform.UnitTestFramework;
 using TestFixture = Microsoft.VisualStudio.TestPlatform.UnitTestFramework.TestClassAttribute;
 using Test = Microsoft.VisualStudio.TestPlatform.UnitTestFramework.TestMethodAttribute;
+#elif ASPNETCORE50
+using Xunit;
+using Test = Xunit.FactAttribute;
+using Assert = Newtonsoft.Json.Tests.XUnitAssert;
+#else
+using NUnit.Framework;
 #endif
 using BESSy.Json.Converters;
 using BESSy.Json.Utilities;
@@ -122,7 +126,7 @@ namespace BESSy.Json.Tests.Converters
             Assert.AreEqual(2006, d.Year);
         }
 
-#if !NETFX_CORE
+#if !(NETFX_CORE || ASPNETCORE50)
         [Test]
         public void SerializeFormattedDateTimeNewZealandCulture()
         {
@@ -224,12 +228,11 @@ namespace BESSy.Json.Tests.Converters
         [Test]
         public void DeserializeNullToNonNullable()
         {
-            ExceptionAssert.Throws<JsonSerializationException>("Cannot convert null value to System.DateTime. Path 'DateTimeField', line 1, position 38.",
-                () =>
-                {
-                    DateTimeTestClass c2 =
-                        JsonConvert.DeserializeObject<DateTimeTestClass>(@"{""PreField"":""Pre"",""DateTimeField"":null,""DateTimeOffsetField"":null,""PostField"":""Post""}", new IsoDateTimeConverter() { DateTimeStyles = DateTimeStyles.AssumeUniversal });
-                });
+            ExceptionAssert.Throws<JsonSerializationException>(() =>
+            {
+                DateTimeTestClass c2 =
+                    JsonConvert.DeserializeObject<DateTimeTestClass>(@"{""PreField"":""Pre"",""DateTimeField"":null,""DateTimeOffsetField"":null,""PostField"":""Post""}", new IsoDateTimeConverter() { DateTimeStyles = DateTimeStyles.AssumeUniversal });
+            }, "Cannot convert null value to System.DateTime. Path 'DateTimeField', line 1, position 38.");
         }
 
         [Test]

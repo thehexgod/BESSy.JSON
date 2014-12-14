@@ -45,9 +45,9 @@ namespace BESSy.Json.Tests.Documentation.Samples.Schema
             // }
 
             JObject person = JObject.Parse(@"{
-        'name': 'James',
-        'hobbies': ['.NET', 'Blogging', 'Reading', 'Xbox', 'LOLCATS']
-      }");
+              'name': 'James',
+              'hobbies': ['.NET', 'Blogging', 'Reading', 'Xbox', 'LOLCATS']
+            }");
 
             bool valid = person.IsValid(schema);
 

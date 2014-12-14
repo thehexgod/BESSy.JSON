@@ -160,7 +160,8 @@ namespace BESSy.Json.Utilities
 #endif
             };
 
-        private static readonly List<TypeInformation> PrimitiveTypeCodes = new List<TypeInformation>
+#if !(NETFX_CORE || PORTABLE)
+        private static readonly TypeInformation[] PrimitiveTypeCodes =
         {
             new TypeInformation { Type = typeof(object), TypeCode = PrimitiveTypeCode.Empty },
             new TypeInformation { Type = typeof(object), TypeCode = PrimitiveTypeCode.Object },
@@ -182,15 +183,28 @@ namespace BESSy.Json.Utilities
             new TypeInformation { Type = typeof(object), TypeCode = PrimitiveTypeCode.Empty }, // no 17 in TypeCode for some reason
             new TypeInformation { Type = typeof(string), TypeCode = PrimitiveTypeCode.String }
         };
+#endif
 
         public static PrimitiveTypeCode GetTypeCode(Type t)
         {
+            bool isEnum;
+            return GetTypeCode(t, out isEnum);
+        }
+
+        public static PrimitiveTypeCode GetTypeCode(Type t, out bool isEnum)
+        {
             PrimitiveTypeCode typeCode;
             if (TypeCodeMap.TryGetValue(t, out typeCode))
+            {
+                isEnum = false;
                 return typeCode;
+            }
 
             if (t.IsEnum())
+            {
+                isEnum = true;
                 return GetTypeCode(Enum.GetUnderlyingType(t));
+            }
 
             // performance?
             if (ReflectionUtils.IsNullableType(t))
@@ -199,16 +213,13 @@ namespace BESSy.Json.Utilities
                 if (nonNullable.IsEnum())
                 {
                     Type nullableUnderlyingType = typeof(Nullable<>).MakeGenericType(Enum.GetUnderlyingType(nonNullable));
+                    isEnum = true;
                     return GetTypeCode(nullableUnderlyingType);
                 }
             }
 
+            isEnum = false;
             return PrimitiveTypeCode.Object;
-        }
-
-        public static PrimitiveTypeCode GetTypeCode(object o)
-        {
-            return GetTypeCode(o.GetType());
         }
 
 #if !(NETFX_CORE || PORTABLE)
@@ -440,6 +451,12 @@ namespace BESSy.Json.Utilities
                 return ConvertResult.Success;
             }
 
+            if (initialValue is Guid && targetType == typeof(byte[]))
+            {
+                value = ((Guid)initialValue).ToByteArray();
+                return ConvertResult.Success;
+            }
+
             if (initialValue is string)
             {
                 if (targetType == typeof(Guid))
@@ -614,7 +631,7 @@ namespace BESSy.Json.Utilities
 
         public static bool IsInteger(object value)
         {
-            switch (GetTypeCode(value))
+            switch (GetTypeCode(value.GetType()))
             {
                 case PrimitiveTypeCode.SByte:
                 case PrimitiveTypeCode.Byte:
@@ -758,6 +775,30 @@ namespace BESSy.Json.Utilities
             }
 
             return ParseResult.Success;
+        }
+
+        public static bool TryConvertGuid(string s, out Guid g)
+        {
+#if NET20 || NET35
+            if (s == null)
+                throw new ArgumentNullException("s");
+
+            Regex format = new Regex(
+                "^[A-Fa-f0-9]{32}$|" +
+                "^({|\\()?[A-Fa-f0-9]{8}-([A-Fa-f0-9]{4}-){3}[A-Fa-f0-9]{12}(}|\\))?$|" +
+                "^({)?[0xA-Fa-f0-9]{3,10}(, {0,1}[0xA-Fa-f0-9]{3,6}){2}, {0,1}({)([0xA-Fa-f0-9]{3,4}, {0,1}){7}[0xA-Fa-f0-9]{3,4}(}})$");
+            Match match = format.Match(s);
+            if (match.Success)
+            {
+                g = new Guid(s);
+                return true;
+            }
+
+            g = Guid.Empty;
+            return false;
+#else
+            return Guid.TryParse(s, out g);
+#endif
         }
     }
 }

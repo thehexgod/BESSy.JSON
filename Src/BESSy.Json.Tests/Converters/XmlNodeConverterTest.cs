@@ -23,17 +23,27 @@
 // OTHER DEALINGS IN THE SOFTWARE.
 #endregion
 
-#if !(NETFX_CORE || PORTABLE || PORTABLE40)
+#if NET20
+using Newtonsoft.Json.Utilities.LinqBridge;
+#else
+using System.Linq;
+#endif
+using System.Text;
+#if !(NETFX_CORE || PORTABLE || ASPNETCORE50 || PORTABLE40)
 using System;
 using System.Collections.Generic;
 using BESSy.Json.Tests.Serialization;
 using BESSy.Json.Tests.TestObjects;
-#if !NETFX_CORE
-using NUnit.Framework;
-#else
+#if NETFX_CORE
 using Microsoft.VisualStudio.TestPlatform.UnitTestFramework;
 using TestFixture = Microsoft.VisualStudio.TestPlatform.UnitTestFramework.TestClassAttribute;
 using Test = Microsoft.VisualStudio.TestPlatform.UnitTestFramework.TestMethodAttribute;
+#elif ASPNETCORE50
+using Xunit;
+using Test = Xunit.FactAttribute;
+using Assert = Newtonsoft.Json.Tests.XUnitAssert;
+#else
+using NUnit.Framework;
 #endif
 using BESSy.Json;
 using System.IO;
@@ -115,6 +125,194 @@ namespace BESSy.Json.Tests.Converters
         }
 
 #if !NET20
+        public class Foo
+        {
+            public XElement Bar { get; set; }
+        }
+
+        [Test]
+        public void SerializeAndDeserializeXElement()
+        {
+            Foo foo = new Foo { Bar = null };
+            string json = JsonConvert.SerializeObject(foo);
+
+            Assert.AreEqual(@"{""Bar"":null}", json);
+            Foo foo2 = JsonConvert.DeserializeObject<Foo>(json);
+
+            Assert.IsNull(foo2.Bar);
+        }
+
+        [Test]
+        public void MultipleNamespacesXDocument()
+        {
+            string xml = @"<result xp_0:end=""2014-08-15 13:12:11.9184"" xp_0:start=""2014-08-15 13:11:49.3140"" xp_0:time_diff=""22604.3836"" xmlns:xp_0=""Test1"" p2:end=""2014-08-15 13:13:49.5522"" p2:start=""2014-08-15 13:13:49.0268"" p2:time_diff=""525.4646"" xmlns:p2=""Test2"" />";
+
+            XDocument d = XDocument.Parse(xml);
+
+            string json = JsonConvert.SerializeObject(d, Formatting.Indented);
+
+            Console.WriteLine(json);
+
+            XDocument doc = JsonConvert.DeserializeObject<XDocument>(json);
+
+            Console.WriteLine(doc.ToString());
+
+            Assert.AreEqual(xml, doc.ToString());
+        }
+#endif
+
+        [Test]
+        public void MultipleNamespacesXmlDocument()
+        {
+            string xml = @"<result xp_0:end=""2014-08-15 13:12:11.9184"" xp_0:start=""2014-08-15 13:11:49.3140"" xp_0:time_diff=""22604.3836"" xmlns:xp_0=""Test1"" p2:end=""2014-08-15 13:13:49.5522"" p2:start=""2014-08-15 13:13:49.0268"" p2:time_diff=""525.4646"" xmlns:p2=""Test2"" />";
+
+            XmlDocument d = new XmlDocument();
+            d.LoadXml(xml);
+
+            string json = JsonConvert.SerializeObject(d, Formatting.Indented);
+
+            Console.WriteLine(json);
+
+            XmlDocument doc = JsonConvert.DeserializeObject<XmlDocument>(json);
+
+            Console.WriteLine(doc.OuterXml);
+
+            Assert.AreEqual(xml, doc.OuterXml);
+        }
+
+        [Test]
+        public void SerializeXmlElement()
+        {
+            string xml = @"<payload>
+    <Country>6</Country>
+    <FinancialTransactionApprovalRequestUID>79</FinancialTransactionApprovalRequestUID>
+    <TransactionStatus>Approved</TransactionStatus>
+    <StatusChangeComment></StatusChangeComment>
+    <RequestedBy>Someone</RequestedBy>
+</payload>";
+
+            var xmlDocument = new XmlDocument();
+
+            xmlDocument.LoadXml(xml);
+
+            var result = xmlDocument.FirstChild.ChildNodes.Cast<XmlNode>().ToArray();
+
+            var json = JsonConvert.SerializeObject(result, Formatting.Indented);  // <--- fails here with the cast message
+
+            StringAssert.AreEqual(@"[
+  {
+    ""Country"": ""6""
+  },
+  {
+    ""FinancialTransactionApprovalRequestUID"": ""79""
+  },
+  {
+    ""TransactionStatus"": ""Approved""
+  },
+  {
+    ""StatusChangeComment"": """"
+  },
+  {
+    ""RequestedBy"": ""Someone""
+  }
+]", json);
+        }
+
+#if !NET20
+        [Test]
+        public void SerializeXElement()
+        {
+            string xml = @"<payload>
+    <Country>6</Country>
+    <FinancialTransactionApprovalRequestUID>79</FinancialTransactionApprovalRequestUID>
+    <TransactionStatus>Approved</TransactionStatus>
+    <StatusChangeComment></StatusChangeComment>
+    <RequestedBy>Someone</RequestedBy>
+</payload>";
+
+            var xmlDocument = XDocument.Parse(xml);
+
+            var result = xmlDocument.Root.Nodes().ToArray();
+
+            var json = JsonConvert.SerializeObject(result, Formatting.Indented);  // <--- fails here with the cast message
+
+            StringAssert.AreEqual(@"[
+  {
+    ""Country"": ""6""
+  },
+  {
+    ""FinancialTransactionApprovalRequestUID"": ""79""
+  },
+  {
+    ""TransactionStatus"": ""Approved""
+  },
+  {
+    ""StatusChangeComment"": """"
+  },
+  {
+    ""RequestedBy"": ""Someone""
+  }
+]", json);
+        }
+
+        public class DecimalContainer
+        {
+            public decimal Number { get; set; }
+        }
+
+        [Test]
+        public void FloatParseHandlingDecimal()
+        {
+            decimal d = (decimal)Math.PI + 1000000000m;
+            var x = new DecimalContainer { Number = d };
+
+            var json = JsonConvert.SerializeObject(x, Formatting.Indented);
+
+            XDocument doc1 = JsonConvert.DeserializeObject<XDocument>(json, new JsonSerializerSettings
+            {
+                Converters = { new XmlNodeConverter() },
+                FloatParseHandling = FloatParseHandling.Decimal
+            });
+
+            var xml = doc1.ToString();
+            Assert.AreEqual("<Number>1000000003.14159265358979</Number>", xml);
+
+            string json2 = JsonConvert.SerializeObject(doc1, Formatting.Indented);
+
+            DecimalContainer x2 = JsonConvert.DeserializeObject<DecimalContainer>(json2);
+
+            Assert.AreEqual(x.Number, x2.Number);
+        }
+
+        public class DateTimeOffsetContainer
+        {
+            public DateTimeOffset Date { get; set; }
+        }
+
+        [Test]
+        public void DateTimeParseHandlingOffset()
+        {
+            DateTimeOffset d = new DateTimeOffset(2012, 12, 12, 12, 44, 1, TimeSpan.FromHours(12).Add(TimeSpan.FromMinutes(34)));
+            var x = new DateTimeOffsetContainer { Date = d };
+
+            var json = JsonConvert.SerializeObject(x, Formatting.Indented);
+
+            XDocument doc1 = JsonConvert.DeserializeObject<XDocument>(json, new JsonSerializerSettings
+            {
+                Converters = { new XmlNodeConverter() },
+                DateParseHandling = DateParseHandling.DateTimeOffset
+            });
+
+            var xml = doc1.ToString();
+            Assert.AreEqual("<Date>2012-12-12T12:44:01+12:34</Date>", xml);
+
+            string json2 = JsonConvert.SerializeObject(doc1, Formatting.Indented);
+
+            DateTimeOffsetContainer x2 = JsonConvert.DeserializeObject<DateTimeOffsetContainer>(json2);
+
+            Assert.AreEqual(x.Date, x2.Date);
+        }
+
         [Test]
         public void GroupElementsOfTheSameName()
         {
@@ -126,7 +324,7 @@ namespace BESSy.Json.Tests.Converters
 
             XDocument doc = JsonConvert.DeserializeXNode(json);
 
-            Assert.AreEqual(@"<root>
+            StringAssert.AreEqual(@"<root>
   <p>Text1 Text2<span>Span1</span><span>Span2</span></p>
 </root>", doc.ToString());
         }
@@ -144,8 +342,7 @@ namespace BESSy.Json.Tests.Converters
             doc.LoadXml("<root></root>");
 
             json = JsonConvert.SerializeXmlNode(doc, Formatting.Indented, true);
-            Assert.AreEqual("null", json);
-
+            Assert.AreEqual(@"""""", json);
 
             XDocument doc1 = XDocument.Parse("<root />");
 
@@ -155,7 +352,7 @@ namespace BESSy.Json.Tests.Converters
             doc1 = XDocument.Parse("<root></root>");
 
             json = JsonConvert.SerializeXNode(doc1, Formatting.Indented, true);
-            Assert.AreEqual("null", json);
+            Assert.AreEqual(@"""""", json);
         }
 
         [Test]
@@ -232,7 +429,7 @@ namespace BESSy.Json.Tests.Converters
   }
 }";
 
-            Assert.AreEqual(expected, jsonText);
+            StringAssert.AreEqual(expected, jsonText);
 
             Console.WriteLine("DocumentSerializeIndented");
             Console.WriteLine(jsonText);
@@ -314,7 +511,7 @@ namespace BESSy.Json.Tests.Converters
 
             jsonText = JsonConvert.SerializeXmlNode(element, Formatting.Indented);
 
-            Assert.AreEqual(@"{
+            StringAssert.AreEqual(@"{
   ""xs:Choice"": {
     ""@msdata:IsDataSet"": """",
     ""@xmlns:xs"": ""http://www.w3.org/2001/XMLSchema"",
@@ -343,6 +540,138 @@ namespace BESSy.Json.Tests.Converters
             Console.WriteLine("DocumentFragmentSerialize");
             Console.WriteLine(jsonText);
             Console.WriteLine();
+        }
+
+        [Test]
+        public void XmlDocumentTypeSerialize()
+        {
+            string xml = @"<?xml version=""1.0"" encoding=""utf-8""?><!DOCTYPE STOCKQUOTE PUBLIC ""-//W3C//DTD StockQuote 1.5//EN"" ""http://www.idontexistnopenopewhatnope123.org/dtd/stockquote_1.5.dtd""><STOCKQUOTE ROWCOUNT=""2""><RESULT><ROW><ASK>0</ASK><BID>0</BID><CHANGE>-16.310</CHANGE><COMPANYNAME>Dow Jones</COMPANYNAME><DATETIME>2014-04-17 15:50:37</DATETIME><DIVIDEND>0</DIVIDEND><EPS>0</EPS><EXCHANGE></EXCHANGE><HIGH>16460.490</HIGH><LASTDATETIME>2014-04-17 15:50:37</LASTDATETIME><LASTPRICE>16408.540</LASTPRICE><LOW>16368.140</LOW><OPEN>16424.140</OPEN><PCHANGE>-0.099</PCHANGE><PE>0</PE><PREVIOUSCLOSE>16424.850</PREVIOUSCLOSE><SHARES>0</SHARES><TICKER>DJII</TICKER><TRADES>0</TRADES><VOLUME>136188700</VOLUME><YEARHIGH>11309.000</YEARHIGH><YEARLOW>9302.280</YEARLOW><YIELD>0</YIELD></ROW><ROW><ASK>0</ASK><BID>0</BID><CHANGE>9.290</CHANGE><COMPANYNAME>NASDAQ</COMPANYNAME><DATETIME>2014-04-17 15:40:01</DATETIME><DIVIDEND>0</DIVIDEND><EPS>0</EPS><EXCHANGE></EXCHANGE><HIGH>4110.460</HIGH><LASTDATETIME>2014-04-17 15:40:01</LASTDATETIME><LASTPRICE>4095.520</LASTPRICE><LOW>4064.700</LOW><OPEN>4080.300</OPEN><PCHANGE>0.227</PCHANGE><PE>0</PE><PREVIOUSCLOSE>4086.230</PREVIOUSCLOSE><SHARES>0</SHARES><TICKER>COMP</TICKER><TRADES>0</TRADES><VOLUME>1784210100</VOLUME><YEARHIGH>4371.710</YEARHIGH><YEARLOW>3154.960</YEARLOW><YIELD>0</YIELD></ROW></RESULT><STATUS>Couldn't find ticker: SPIC?</STATUS><STATUSCODE>2</STATUSCODE></STOCKQUOTE>";
+
+            string expected = @"{
+  ""?xml"": {
+    ""@version"": ""1.0"",
+    ""@encoding"": ""utf-8""
+  },
+  ""!DOCTYPE"": {
+    ""@name"": ""STOCKQUOTE"",
+    ""@public"": ""-//W3C//DTD StockQuote 1.5//EN"",
+    ""@system"": ""http://www.idontexistnopenopewhatnope123.org/dtd/stockquote_1.5.dtd""
+  },
+  ""STOCKQUOTE"": {
+    ""@ROWCOUNT"": ""2"",
+    ""RESULT"": {
+      ""ROW"": [
+        {
+          ""ASK"": ""0"",
+          ""BID"": ""0"",
+          ""CHANGE"": ""-16.310"",
+          ""COMPANYNAME"": ""Dow Jones"",
+          ""DATETIME"": ""2014-04-17 15:50:37"",
+          ""DIVIDEND"": ""0"",
+          ""EPS"": ""0"",
+          ""EXCHANGE"": """",
+          ""HIGH"": ""16460.490"",
+          ""LASTDATETIME"": ""2014-04-17 15:50:37"",
+          ""LASTPRICE"": ""16408.540"",
+          ""LOW"": ""16368.140"",
+          ""OPEN"": ""16424.140"",
+          ""PCHANGE"": ""-0.099"",
+          ""PE"": ""0"",
+          ""PREVIOUSCLOSE"": ""16424.850"",
+          ""SHARES"": ""0"",
+          ""TICKER"": ""DJII"",
+          ""TRADES"": ""0"",
+          ""VOLUME"": ""136188700"",
+          ""YEARHIGH"": ""11309.000"",
+          ""YEARLOW"": ""9302.280"",
+          ""YIELD"": ""0""
+        },
+        {
+          ""ASK"": ""0"",
+          ""BID"": ""0"",
+          ""CHANGE"": ""9.290"",
+          ""COMPANYNAME"": ""NASDAQ"",
+          ""DATETIME"": ""2014-04-17 15:40:01"",
+          ""DIVIDEND"": ""0"",
+          ""EPS"": ""0"",
+          ""EXCHANGE"": """",
+          ""HIGH"": ""4110.460"",
+          ""LASTDATETIME"": ""2014-04-17 15:40:01"",
+          ""LASTPRICE"": ""4095.520"",
+          ""LOW"": ""4064.700"",
+          ""OPEN"": ""4080.300"",
+          ""PCHANGE"": ""0.227"",
+          ""PE"": ""0"",
+          ""PREVIOUSCLOSE"": ""4086.230"",
+          ""SHARES"": ""0"",
+          ""TICKER"": ""COMP"",
+          ""TRADES"": ""0"",
+          ""VOLUME"": ""1784210100"",
+          ""YEARHIGH"": ""4371.710"",
+          ""YEARLOW"": ""3154.960"",
+          ""YIELD"": ""0""
+        }
+      ]
+    },
+    ""STATUS"": ""Couldn't find ticker: SPIC?"",
+    ""STATUSCODE"": ""2""
+  }
+}";
+
+            XmlDocument doc1 = new XmlDocument();
+            doc1.XmlResolver = null;
+            doc1.LoadXml(xml);
+
+            string json1 = JsonConvert.SerializeXmlNode(doc1, Formatting.Indented);
+
+            StringAssert.AreEqual(expected, json1);
+
+            XmlDocument doc11 = JsonConvert.DeserializeXmlNode(json1);
+
+            StringAssert.AreEqual(xml, ToStringWithDeclaration(doc11));
+
+#if !NET20
+            XDocument doc2 = XDocument.Parse(xml);
+
+            string json2 = JsonConvert.SerializeXNode(doc2, Formatting.Indented);
+
+            StringAssert.AreEqual(expected, json2);
+
+            XDocument doc22 = JsonConvert.DeserializeXNode(json2);
+
+            StringAssert.AreEqual(xml, ToStringWithDeclaration(doc22));
+#endif
+        }
+
+        public class Utf8StringWriter : StringWriter
+        {
+            public override Encoding Encoding { get { return Encoding.UTF8; } }
+
+            public Utf8StringWriter(StringBuilder sb) : base(sb)
+            {
+            }
+        }
+
+#if !NET20
+        public static string ToStringWithDeclaration(XDocument doc, bool indent = false)
+        {
+            StringBuilder builder = new StringBuilder();
+            using (var writer = XmlWriter.Create(new Utf8StringWriter(builder), new XmlWriterSettings { Indent = indent }))
+            {
+                doc.Save(writer);
+            }
+            return builder.ToString();
+        }
+#endif
+
+        public static string ToStringWithDeclaration(XmlDocument doc, bool indent = false)
+        {
+            StringBuilder builder = new StringBuilder();
+            using (var writer = XmlWriter.Create(new Utf8StringWriter(builder), new XmlWriterSettings { Indent = indent }))
+            {
+                doc.Save(writer);
+            }
+            return builder.ToString();
         }
 
         [Test]
@@ -422,7 +751,7 @@ namespace BESSy.Json.Tests.Converters
   }
 }";
 
-            Assert.AreEqual(expected, jsonText);
+            StringAssert.AreEqual(expected, jsonText);
 
             XmlDocument deserializedDoc = (XmlDocument)DeserializeXmlNode(jsonText);
 
@@ -471,7 +800,7 @@ namespace BESSy.Json.Tests.Converters
             Console.WriteLine(formattedXml);
             Console.WriteLine();
 
-            Assert.AreEqual(expected, formattedXml);
+            StringAssert.AreEqual(expected, formattedXml);
         }
 
         private string GetIndentedInnerXml(XmlNode node)
@@ -556,17 +885,13 @@ namespace BESSy.Json.Tests.Converters
         [Test]
         public void NoRootObject()
         {
-            ExceptionAssert.Throws<JsonSerializationException>(
-                "XmlNodeConverter can only convert JSON that begins with an object.",
-                () => { XmlDocument newDoc = (XmlDocument)JsonConvert.DeserializeXmlNode(@"[1]"); });
+            ExceptionAssert.Throws<JsonSerializationException>(() => { XmlDocument newDoc = (XmlDocument)JsonConvert.DeserializeXmlNode(@"[1]"); }, "XmlNodeConverter can only convert JSON that begins with an object.");
         }
 
         [Test]
         public void RootObjectMultipleProperties()
         {
-            ExceptionAssert.Throws<JsonSerializationException>(
-                "JSON root object has multiple properties. The root object must have a single property in order to create a valid XML document. Consider specifing a DeserializeRootElementName.",
-                () => { XmlDocument newDoc = (XmlDocument)JsonConvert.DeserializeXmlNode(@"{Prop1:1,Prop2:2}"); });
+            ExceptionAssert.Throws<JsonSerializationException>(() => { XmlDocument newDoc = (XmlDocument)JsonConvert.DeserializeXmlNode(@"{Prop1:1,Prop2:2}"); }, "JSON root object has multiple properties. The root object must have a single property in order to create a valid XML document. Consider specifing a DeserializeRootElementName.");
         }
 
         [Test]
@@ -592,7 +917,7 @@ namespace BESSy.Json.Tests.Converters
   }
 }";
 
-            Assert.AreEqual(expected, json);
+            StringAssert.AreEqual(expected, json);
         }
 
         [Test]
@@ -622,7 +947,7 @@ namespace BESSy.Json.Tests.Converters
     }
   }
 }";
-            Assert.AreEqual(expected, arrayJsonText);
+            StringAssert.AreEqual(expected, arrayJsonText);
 
             arrayXml = @"<root xmlns:json=""http://james.newtonking.com/projects/json"">
 			  <person id=""1"">
@@ -650,7 +975,7 @@ namespace BESSy.Json.Tests.Converters
     }
   }
 }";
-            Assert.AreEqual(expected, arrayJsonText);
+            StringAssert.AreEqual(expected, arrayJsonText);
 
             arrayXml = @"<root xmlns:json=""http://james.newtonking.com/projects/json"">
 			  <person id=""1"">
@@ -674,7 +999,7 @@ namespace BESSy.Json.Tests.Converters
     }
   }
 }";
-            Assert.AreEqual(expected, arrayJsonText);
+            StringAssert.AreEqual(expected, arrayJsonText);
         }
 
         [Test]
@@ -682,9 +1007,7 @@ namespace BESSy.Json.Tests.Converters
         {
             string json = @"{""count"": 773840,""photos"": null}";
 
-            ExceptionAssert.Throws<JsonSerializationException>(
-                "JSON root object has multiple properties. The root object must have a single property in order to create a valid XML document. Consider specifing a DeserializeRootElementName.",
-                () => { JsonConvert.DeserializeXmlNode(json); });
+            ExceptionAssert.Throws<JsonSerializationException>(() => { JsonConvert.DeserializeXmlNode(json); }, "JSON root object has multiple properties. The root object must have a single property in order to create a valid XML document. Consider specifing a DeserializeRootElementName.");
         }
 
 #if !NET20
@@ -693,9 +1016,7 @@ namespace BESSy.Json.Tests.Converters
         {
             string json = @"{""count"": 773840,""photos"": null}";
 
-            ExceptionAssert.Throws<JsonSerializationException>(
-                "JSON root object has multiple properties. The root object must have a single property in order to create a valid XML document. Consider specifing a DeserializeRootElementName.",
-                () => { JsonConvert.DeserializeXNode(json); });
+            ExceptionAssert.Throws<JsonSerializationException>(() => { JsonConvert.DeserializeXNode(json); }, "JSON root object has multiple properties. The root object must have a single property in order to create a valid XML document. Consider specifing a DeserializeRootElementName.");
         }
 #endif
 
@@ -738,7 +1059,7 @@ namespace BESSy.Json.Tests.Converters
 
             string xml = IndentXml(newDoc.InnerXml);
 
-            Assert.AreEqual(@"<myRoot>
+            StringAssert.AreEqual(@"<myRoot>
   <available_sizes>
     <available_sizes>assets/images/resized/0001/1070/11070v1-max-150x150.jpg</available_sizes>
     <available_sizes>assets/images/resized/0001/1070/11070v1-max-150x150.jpg</available_sizes>
@@ -755,7 +1076,7 @@ namespace BESSy.Json.Tests.Converters
 #if !NET20
             XDocument newXDoc = JsonConvert.DeserializeXNode(json, "myRoot");
 
-            Assert.AreEqual(@"<myRoot>
+            StringAssert.AreEqual(@"<myRoot>
   <available_sizes>
     <available_sizes>assets/images/resized/0001/1070/11070v1-max-150x150.jpg</available_sizes>
     <available_sizes>assets/images/resized/0001/1070/11070v1-max-150x150.jpg</available_sizes>
@@ -795,7 +1116,7 @@ namespace BESSy.Json.Tests.Converters
 
             XmlDocument newDoc = JsonConvert.DeserializeXmlNode(json, "myRoot", true);
 
-            Assert.AreEqual(@"<myRoot>
+            StringAssert.AreEqual(@"<myRoot>
   <available_sizes json:Array=""true"" xmlns:json=""http://james.newtonking.com/projects/json"">
     <available_sizes>assets/images/resized/0001/1070/11070v1-max-150x150.jpg</available_sizes>
     <available_sizes>assets/images/resized/0001/1070/11070v1-max-150x150.jpg</available_sizes>
@@ -814,7 +1135,7 @@ namespace BESSy.Json.Tests.Converters
 
             Console.WriteLine(IndentXml(newXDoc.ToString(SaveOptions.DisableFormatting)));
 
-            Assert.AreEqual(@"<myRoot>
+            StringAssert.AreEqual(@"<myRoot>
   <available_sizes json:Array=""true"" xmlns:json=""http://james.newtonking.com/projects/json"">
     <available_sizes>assets/images/resized/0001/1070/11070v1-max-150x150.jpg</available_sizes>
     <available_sizes>assets/images/resized/0001/1070/11070v1-max-150x150.jpg</available_sizes>
@@ -830,7 +1151,7 @@ namespace BESSy.Json.Tests.Converters
 #endif
 
             string newJson = JsonConvert.SerializeXmlNode(newDoc, Formatting.Indented, true);
-            Assert.AreEqual(json, newJson);
+            StringAssert.AreEqual(json, newJson);
         }
 
         [Test]
@@ -872,7 +1193,7 @@ namespace BESSy.Json.Tests.Converters
             doc.LoadXml(@"<name>O""Connor</name>"); // i use "" so it will be easier to see the  problem
 
             string json = SerializeXmlNode(doc);
-            Assert.AreEqual(@"{
+            StringAssert.AreEqual(@"{
   ""name"": ""O\""Connor""
 }", json);
         }
@@ -881,7 +1202,7 @@ namespace BESSy.Json.Tests.Converters
         public void SerializeComment()
         {
             string xml = @"<span class=""vevent"">
-  <a class=""url"" href=""http://www.web2con.com/"">Text</a><!-- Hi! -->
+  <a class=""url"" href=""http://www.web2con.com/""><!-- Hi --><span>Text</span></a><!-- Hi! -->
 </span>";
             XmlDocument doc = new XmlDocument();
             doc.LoadXml(xml);
@@ -893,16 +1214,16 @@ namespace BESSy.Json.Tests.Converters
     ""@class"": ""vevent"",
     ""a"": {
       ""@class"": ""url"",
-      ""@href"": ""http://www.web2con.com/"",
-      ""#text"": ""Text""
+      ""@href"": ""http://www.web2con.com/""/* Hi */,
+      ""span"": ""Text""
     }/* Hi! */
   }
 }";
 
-            Assert.AreEqual(expected, jsonText);
+            StringAssert.AreEqual(expected, jsonText);
 
             XmlDocument newDoc = (XmlDocument)DeserializeXmlNode(jsonText);
-            Assert.AreEqual(@"<span class=""vevent""><a class=""url"" href=""http://www.web2con.com/"">Text</a><!-- Hi! --></span>", newDoc.InnerXml);
+			Assert.AreEqual(@"<span class=""vevent""><a class=""url"" href=""http://www.web2con.com/""><!-- Hi --><span>Text</span></a><!-- Hi! --></span>", newDoc.InnerXml);
         }
 
         [Test]
@@ -948,7 +1269,7 @@ namespace BESSy.Json.Tests.Converters
             // format
             jsonText = JObject.Parse(jsonText).ToString();
 
-            Assert.AreEqual(@"{
+            StringAssert.AreEqual(@"{
   ""?xml"": {
     ""@version"": ""1.0"",
     ""@standalone"": ""no""
@@ -1011,21 +1332,11 @@ namespace BESSy.Json.Tests.Converters
             //   </person>
             // </root>
 
-            Assert.AreEqual(@"<?xml version=""1.0"" standalone=""no""?>
-<root>
-<person id=""1"">
-<name>Alan</name>
-<url>http://www.google.com</url>
-</person>
-<person id=""2"">
-<name>Louis</name>
-<url>http://www.yahoo.com</url>
-</person>
-</root>".Replace(Environment.NewLine, string.Empty), doc.InnerXml);
+            StringAssert.AreEqual(@"<?xml version=""1.0"" standalone=""no""?><root><person id=""1""><name>Alan</name><url>http://www.google.com</url></person><person id=""2""><name>Louis</name><url>http://www.yahoo.com</url></person></root>", doc.InnerXml);
         }
 
         [Test]
-        public void SerializeDeserializeSpecialProperties()
+        public void SerializeDeserializeMetadataProperties()
         {
             PreserveReferencesHandlingTests.CircularDictionary circularDictionary = new PreserveReferencesHandlingTests.CircularDictionary();
             circularDictionary.Add("other", new PreserveReferencesHandlingTests.CircularDictionary { { "blah", null } });
@@ -1034,7 +1345,7 @@ namespace BESSy.Json.Tests.Converters
             string json = JsonConvert.SerializeObject(circularDictionary, Formatting.Indented,
                 new JsonSerializerSettings { PreserveReferencesHandling = PreserveReferencesHandling.All });
 
-            Assert.AreEqual(@"{
+            StringAssert.AreEqual(@"{
   ""$id"": ""1"",
   ""other"": {
     ""$id"": ""2"",
@@ -1055,7 +1366,7 @@ namespace BESSy.Json.Tests.Converters
   <self json:ref=""1"" />
 </root>";
 
-            Assert.AreEqual(expected, xml);
+            StringAssert.AreEqual(expected, xml);
 
             string xmlJson = SerializeXmlNode(node);
             string expectedXmlJson = @"{
@@ -1071,7 +1382,7 @@ namespace BESSy.Json.Tests.Converters
   }
 }";
 
-            Assert.AreEqual(expectedXmlJson, xmlJson);
+            StringAssert.AreEqual(expectedXmlJson, xmlJson);
         }
 
         [Test]
@@ -1156,9 +1467,7 @@ namespace BESSy.Json.Tests.Converters
   }
 }";
 
-            ExceptionAssert.Throws<JsonSerializationException>(
-                "XmlNodeConverter cannot convert JSON with an empty property name to XML.",
-                () => { DeserializeXmlNode(json); });
+            ExceptionAssert.Throws<JsonSerializationException>(() => { DeserializeXmlNode(json); }, "XmlNodeConverter cannot convert JSON with an empty property name to XML.");
         }
 
         [Test]
@@ -1175,7 +1484,7 @@ namespace BESSy.Json.Tests.Converters
 
             XmlDocument xmlProduct = JsonConvert.DeserializeXmlNode(output, "product", true);
 
-            Assert.AreEqual(@"<product>
+            StringAssert.AreEqual(@"<product>
   <Name>Apple</Name>
   <ExpiryDate>2008-12-28T00:00:00Z</ExpiryDate>
   <Price>3.99</Price>
@@ -1184,7 +1493,7 @@ namespace BESSy.Json.Tests.Converters
 
             string output2 = JsonConvert.SerializeXmlNode(xmlProduct.DocumentElement, Formatting.Indented);
 
-            Assert.AreEqual(@"{
+            StringAssert.AreEqual(@"{
   ""product"": {
     ""Name"": ""Apple"",
     ""ExpiryDate"": ""2008-12-28T00:00:00Z"",
@@ -1218,7 +1527,7 @@ namespace BESSy.Json.Tests.Converters
 
             XmlDocument xmlProduct = JsonConvert.DeserializeXmlNode(output, "test", true);
 
-            Assert.AreEqual(@"<test>
+            StringAssert.AreEqual(@"<test>
   <Name>Hi</Name>
   <Products json:Array=""true"" xmlns:json=""http://james.newtonking.com/projects/json"">
     <Name>First</Name>
@@ -1230,7 +1539,7 @@ namespace BESSy.Json.Tests.Converters
 
             string output2 = JsonConvert.SerializeXmlNode(xmlProduct.DocumentElement, Formatting.Indented, true);
 
-            Assert.AreEqual(@"{
+            StringAssert.AreEqual(@"{
   ""Name"": ""Hi"",
   ""Products"": [
     {
@@ -1279,7 +1588,7 @@ namespace BESSy.Json.Tests.Converters
 
             string output = JsonConvert.SerializeXmlNode(d, Formatting.Indented, true);
 
-            Assert.AreEqual(@"{
+            StringAssert.AreEqual(@"{
   ""Name"": [
     ""Hi"",
     ""Hi""
@@ -1312,7 +1621,7 @@ namespace BESSy.Json.Tests.Converters
 
             string json = JsonConvert.SerializeXmlNode(d, Formatting.Indented);
 
-            Assert.AreEqual(@"{
+            StringAssert.AreEqual(@"{
   ""?xml"": {
     ""@version"": ""1.0"",
     ""@encoding"": ""utf-8""
@@ -1325,12 +1634,23 @@ namespace BESSy.Json.Tests.Converters
         }
       ],
       ""C"": [
-        null,
-        null
+        """",
+        """"
       ]
     }
   }
 }", json);
+
+            XmlDocument d2 = JsonConvert.DeserializeXmlNode(json);
+
+            StringAssert.AreEqual(@"<?xml version=""1.0"" encoding=""utf-8""?>
+<root>
+  <A>
+    <B name=""sample"" />
+    <C></C>
+    <C></C>
+  </A>
+</root>", ToStringWithDeclaration(d2, true));
         }
 
         [Test]
@@ -1345,7 +1665,7 @@ namespace BESSy.Json.Tests.Converters
 
             string json = JsonConvert.SerializeXmlNode(d, Formatting.Indented);
 
-            Assert.AreEqual(@"{
+            StringAssert.AreEqual(@"{
   ""root"": {
     ""Reports"": [
       {}
@@ -1378,7 +1698,7 @@ namespace BESSy.Json.Tests.Converters
 
             string xmlString = System.Text.Encoding.UTF8.GetString(xml.ToArray());
 
-            Assert.AreEqual(@"﻿<?xml version=""1.0"" encoding=""utf-8""?><root booleanType=""true"" />", xmlString);
+            Assert.AreEqual(@"<?xml version=""1.0"" encoding=""utf-8""?><root booleanType=""true"" />", xmlString);
         }
 
         private static void JsonBodyToSoapXml(Stream json, Stream xml)
@@ -1594,7 +1914,7 @@ namespace BESSy.Json.Tests.Converters
   }
 }";
 
-            Assert.AreEqual(expectedJson, json);
+            StringAssert.AreEqual(expectedJson, json);
 
             XNode node = JsonConvert.DeserializeXNode(json);
 
@@ -1633,7 +1953,7 @@ namespace BESSy.Json.Tests.Converters
   <TextBlock Grid.Column=""0"" Text=""Assignee"" Style=""{StaticResource trimFormGrid_LBL}"" Grid.Row=""7"" xmlns="""" />
 </Grid>";
 
-            Assert.AreEqual(expectedXaml, xaml2);
+            StringAssert.AreEqual(expectedXaml, xaml2);
         }
 #endif
 
@@ -1835,7 +2155,7 @@ namespace BESSy.Json.Tests.Converters
   }
 }";
 
-            Assert.AreEqual(expectedJson, json);
+            StringAssert.AreEqual(expectedJson, json);
 
             XmlNode node = JsonConvert.DeserializeXmlNode(json);
 
@@ -1883,7 +2203,7 @@ namespace BESSy.Json.Tests.Converters
   <TextBlock Grid.Column=""0"" Text=""Assignee"" Style=""{StaticResource trimFormGrid_LBL}"" Grid.Row=""7"" xmlns="""" />
 </Grid>";
 
-            Assert.AreEqual(expectedXaml, xaml2);
+            StringAssert.AreEqual(expectedXaml, xaml2);
         }
 
         [Test]

@@ -155,9 +155,11 @@ namespace BESSy.Json.Linq
         /// <param name="name">The name of the property.</param>
         public override void WritePropertyName(string name)
         {
-            base.WritePropertyName(name);
-
             AddParent(new JProperty(name));
+
+            // don't set state until after in case of an error such as duplicate property names
+            // incorrect state will cause issues if writer is disposed when closing open properties
+            base.WritePropertyName(name);
         }
 
         private void AddValue(object value, JsonToken token)
@@ -176,7 +178,7 @@ namespace BESSy.Json.Linq
             }
             else
             {
-                _value = value ?? new JValue((object)null);
+                _value = value ?? JValue.CreateNull();
             }
         }
 
@@ -246,7 +248,7 @@ namespace BESSy.Json.Linq
         public override void WriteValue(string value)
         {
             base.WriteValue(value);
-            AddValue(value ?? string.Empty, JsonToken.String);
+            AddValue(value, JsonToken.String);
         }
 
         /// <summary>
@@ -413,9 +415,9 @@ namespace BESSy.Json.Linq
 #endif
 
         /// <summary>
-        /// Writes a <see cref="T:Byte[]"/> value.
+        /// Writes a <see cref="Byte"/>[] value.
         /// </summary>
-        /// <param name="value">The <see cref="T:Byte[]"/> value to write.</param>
+        /// <param name="value">The <see cref="Byte"/>[] value to write.</param>
         public override void WriteValue(byte[] value)
         {
             base.WriteValue(value);

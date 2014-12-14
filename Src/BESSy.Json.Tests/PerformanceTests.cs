@@ -23,7 +23,8 @@
 // OTHER DEALINGS IN THE SOFTWARE.
 #endregion
 
-#if !(NET20 || NET35 || NETFX_CORE || PORTABLE)
+#if !(NET20 || NET35 || NETFX_CORE || PORTABLE || ASPNETCORE50)
+using System.Xml;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -65,7 +66,7 @@ namespace BESSy.Json.Tests
     [TestFixture]
     public class PerformanceTests : TestFixtureBase
     {
-        private const int Iterations = 100;
+        public int Iterations = 100;
         //private const int Iterations = 5000;
 
         #region Data
@@ -131,6 +132,77 @@ namespace BESSy.Json.Tests
             SerializeTests(test);
         }
 
+        [Test]
+        public void ReadLargeJson()
+        {
+            for (int i = 0; i < 10; i++)
+            {
+                using (var fs = System.IO.File.OpenText("large.json"))
+                using (JsonTextReader jsonTextReader = new JsonTextReader(fs))
+                {
+                    while (jsonTextReader.Read())
+                    {
+                    }
+                }
+            }
+        }
+
+        public class Friend
+        {
+            public int id { get; set; }
+            public string name { get; set; }
+        }
+
+        public class RootObject
+        {
+            public string _id { get; set; }
+            public int index { get; set; }
+            public Guid guid { get; set; }
+            public bool isActive { get; set; }
+            public string balance { get; set; }
+            public Uri picture { get; set; }
+            public int age { get; set; }
+            public string eyeColor { get; set; }
+            public string name { get; set; }
+            public string gender { get; set; }
+            public string company { get; set; }
+            public string email { get; set; }
+            public string phone { get; set; }
+            public string address { get; set; }
+            public string about { get; set; }
+            public DateTime registered { get; set; }
+            public double latitude { get; set; }
+            public decimal longitude { get; set; }
+            public List<string> tags { get; set; }
+            public List<Friend> friends { get; set; }
+            public string greeting { get; set; }
+            public string favoriteFruit { get; set; }
+        }
+
+        [Test]
+        public void DeserializeLargeJson()
+        {
+            var json = System.IO.File.ReadAllText("large.json");
+
+            BenchmarkDeserializeMethod<IList<RootObject>>(SerializeMethod.JsonNet, json, Iterations / 10, false);
+        }
+
+        [Test]
+        public void SerializeKeyValuePair()
+        {
+            IList<KeyValuePair<string, int>> value = new List<KeyValuePair<string, int>>();
+            for (int i = 0; i < 100; i++)
+            {
+                value.Add(new KeyValuePair<string, int>("Key" + i, i));
+            }
+
+            BenchmarkSerializeMethod(SerializeMethod.JsonNet, value);
+
+            string json = JsonConvert.SerializeObject(value);
+
+            BenchmarkDeserializeMethod<IList<KeyValuePair<string, int>>>(SerializeMethod.JsonNet, json);
+        }
+
         private void SerializeTests(object value)
         {
             BenchmarkSerializeMethod(SerializeMethod.DataContractSerializer, value);
@@ -179,6 +251,32 @@ namespace BESSy.Json.Tests
 
             SerializeSize(image);
         }
+
+#if !(PORTABLE40)
+        [Test]
+        public void ConvertXmlNode()
+        {
+            XmlDocument doc = new XmlDocument();
+            using (FileStream file = System.IO.File.OpenRead("large_sample.xml"))
+            {
+                doc.Load(file);
+            }
+
+            JsonConvert.SerializeXmlNode(doc);
+        }
+
+        [Test]
+        public void ConvertXNode()
+        {
+            XDocument doc;
+            using (FileStream file = System.IO.File.OpenRead("large_sample.xml"))
+            {
+                doc = XDocument.Load(file);
+            }
+
+            JsonConvert.SerializeXNode(doc);
+        }
+#endif
 
         private T TimeOperation<T>(Func<T> operation, string name)
         {
@@ -708,15 +806,20 @@ If attributes are not mentioned, default values are used in each case.
         #endregion
 
         #region Deserialize
-        public void BenchmarkDeserializeMethod<T>(SerializeMethod method, object json)
+        public void BenchmarkDeserializeMethod<T>(SerializeMethod method, object json, int? iterations = null, bool warmUp = true)
         {
-            Deserialize<T>(method, json);
+            GC.Collect();
+
+            if (warmUp)
+                Deserialize<T>(method, json);
 
             Stopwatch timed = new Stopwatch();
             timed.Start();
 
+            iterations = iterations ?? Iterations;
+
             T value = default(T);
-            for (int x = 0; x < Iterations; x++)
+            for (int x = 0; x < iterations.Value; x++)
             {
                 value = Deserialize<T>(method, json);
             }
@@ -846,15 +949,14 @@ If attributes are not mentioned, default values are used in each case.
 
         public T DeserializeWebExtensions<T>(string json)
         {
-            JavaScriptSerializer ser = new JavaScriptSerializer();
+            JavaScriptSerializer ser = new JavaScriptSerializer { MaxJsonLength = int.MaxValue };
 
             return ser.Deserialize<T>(json);
         }
 
         public T DeserializeDataContractJson<T>(string json)
         {
-            DataContractJsonSerializer dataContractSerializer
-                = new DataContractJsonSerializer(typeof(T));
+            DataContractJsonSerializer dataContractSerializer = new DataContractJsonSerializer(typeof(T));
 
             MemoryStream ms = new MemoryStream(Encoding.UTF8.GetBytes(json));
 
@@ -994,6 +1096,25 @@ If attributes are not mentioned, default values are used in each case.
                 }
                 return null;
             }, "JObject.ToString");
+        }
+
+        [Test]
+        public void JObjectCreationAndPropertyAccess()
+        {
+            TimeOperation<object>(() =>
+            {
+                for (int i = 0; i < Iterations * 100; i++)
+                {
+                    JObject test = new JObject(
+                        new JProperty("one", 1),
+                        new JProperty("two", 2));
+
+                    test["i"] = i;
+                    int j = (int)test["i"];
+                    test["j"] = j;
+                }
+                return null;
+            }, "JObjectCreationAndPropertyAccess");
         }
 
         [Test]

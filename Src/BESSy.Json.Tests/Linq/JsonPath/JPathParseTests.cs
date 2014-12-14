@@ -26,12 +26,16 @@
 using System;
 using System.Collections.Generic;
 using BESSy.Json.Linq.JsonPath;
-#if !NETFX_CORE
-using NUnit.Framework;
-#else
+#if NETFX_CORE
 using Microsoft.VisualStudio.TestPlatform.UnitTestFramework;
 using TestFixture = Microsoft.VisualStudio.TestPlatform.UnitTestFramework.TestClassAttribute;
 using Test = Microsoft.VisualStudio.TestPlatform.UnitTestFramework.TestMethodAttribute;
+#elif ASPNETCORE50
+using Xunit;
+using Test = Xunit.FactAttribute;
+using Assert = Newtonsoft.Json.Tests.XUnitAssert;
+#else
+using NUnit.Framework;
 #endif
 using BESSy.Json.Linq;
 #if NET20
@@ -104,25 +108,19 @@ namespace BESSy.Json.Tests.Linq.JsonPath
         [Test]
         public void RootWithBadWhitespace()
         {
-            ExceptionAssert.Throws<JsonException>(
-                @"Unexpected character while parsing path:  ",
-                () => { new JPath("$ .Blah"); });
+            ExceptionAssert.Throws<JsonException>(() => { new JPath("$ .Blah"); }, @"Unexpected character while parsing path:  ");
         }
 
         [Test]
         public void NoFieldNameAfterDot()
         {
-            ExceptionAssert.Throws<JsonException>(
-                @"Unexpected end while parsing path.",
-                () => { new JPath("$.Blah."); });
+            ExceptionAssert.Throws<JsonException>(() => { new JPath("$.Blah."); }, @"Unexpected end while parsing path.");
         }
 
         [Test]
         public void RootWithBadWhitespace2()
         {
-            ExceptionAssert.Throws<JsonException>(
-                @"Unexpected character while parsing path:  ",
-                () => { new JPath("$. Blah"); });
+            ExceptionAssert.Throws<JsonException>(() => { new JPath("$. Blah"); }, @"Unexpected character while parsing path:  ");
         }
 
         [Test]
@@ -273,9 +271,7 @@ namespace BESSy.Json.Tests.Linq.JsonPath
         [Test]
         public void SinglePropertyAndFilterWithUnknownEscape()
         {
-            ExceptionAssert.Throws<JsonException>(
-                @"Unknown escape chracter: \i",
-                () => { new JPath(@"Blah[ ?( @.name=='h\i' ) ]"); });
+            ExceptionAssert.Throws<JsonException>(() => { new JPath(@"Blah[ ?( @.name=='h\i' ) ]"); }, @"Unknown escape chracter: \i");
         }
 
         [Test]
@@ -425,57 +421,49 @@ namespace BESSy.Json.Tests.Linq.JsonPath
         [Test]
         public void BadOr1()
         {
-            ExceptionAssert.Throws<JsonException>("Unexpected character while parsing path query: )",
-                () => new JPath("[?(@.name||)]"));
+            ExceptionAssert.Throws<JsonException>(() => new JPath("[?(@.name||)]"), "Unexpected character while parsing path query: )");
         }
 
         [Test]
         public void BaddOr2()
         {
-            ExceptionAssert.Throws<JsonException>("Unexpected character while parsing path query: |",
-                () => new JPath("[?(@.name|)]"));
+            ExceptionAssert.Throws<JsonException>(() => new JPath("[?(@.name|)]"), "Unexpected character while parsing path query: |");
         }
 
         [Test]
         public void BaddOr3()
         {
-            ExceptionAssert.Throws<JsonException>("Unexpected character while parsing path query: |",
-                () => new JPath("[?(@.name|"));
+            ExceptionAssert.Throws<JsonException>(() => new JPath("[?(@.name|"), "Unexpected character while parsing path query: |");
         }
 
         [Test]
         public void BaddOr4()
         {
-            ExceptionAssert.Throws<JsonException>("Path ended with open query.",
-                () => new JPath("[?(@.name||"));
+            ExceptionAssert.Throws<JsonException>(() => new JPath("[?(@.name||"), "Path ended with open query.");
         }
 
         [Test]
         public void NoAtAfterOr()
         {
-            ExceptionAssert.Throws<JsonException>("Unexpected character while parsing path query: s",
-                () => new JPath("[?(@.name||s"));
+            ExceptionAssert.Throws<JsonException>(() => new JPath("[?(@.name||s"), "Unexpected character while parsing path query: s");
         }
 
         [Test]
         public void NoPathAfterAt()
         {
-            ExceptionAssert.Throws<JsonException>(@"Path ended with open query.",
-                () => new JPath("[?(@.name||@"));
+            ExceptionAssert.Throws<JsonException>(() => new JPath("[?(@.name||@"), @"Path ended with open query.");
         }
 
         [Test]
         public void NoPathAfterDot()
         {
-            ExceptionAssert.Throws<JsonException>(@"Unexpected end while parsing path.",
-                () => new JPath("[?(@.name||@."));
+            ExceptionAssert.Throws<JsonException>(() => new JPath("[?(@.name||@."), @"Unexpected end while parsing path.");
         }
 
         [Test]
         public void NoPathAfterDot2()
         {
-            ExceptionAssert.Throws<JsonException>(@"Unexpected end while parsing path.",
-                () => new JPath("[?(@.name||@.)]"));
+            ExceptionAssert.Throws<JsonException>(() => new JPath("[?(@.name||@.)]"), @"Unexpected end while parsing path.");
         }
 
         [Test]
@@ -502,17 +490,13 @@ namespace BESSy.Json.Tests.Linq.JsonPath
         [Test]
         public void BadCharactersInIndexer()
         {
-            ExceptionAssert.Throws<JsonException>(
-                @"Unexpected character while parsing path indexer: [",
-                () => { new JPath("Blah[[0]].Two.Three[1].Four"); });
+            ExceptionAssert.Throws<JsonException>(() => { new JPath("Blah[[0]].Two.Three[1].Four"); }, @"Unexpected character while parsing path indexer: [");
         }
 
         [Test]
         public void UnclosedIndexer()
         {
-            ExceptionAssert.Throws<JsonException>(
-                @"Path ended with open indexer.",
-                () => { new JPath("Blah[0"); });
+            ExceptionAssert.Throws<JsonException>(() => { new JPath("Blah[0"); }, @"Path ended with open indexer.");
         }
 
         [Test]
@@ -634,17 +618,13 @@ namespace BESSy.Json.Tests.Linq.JsonPath
         [Test]
         public void EmptyIndexer()
         {
-            ExceptionAssert.Throws<JsonException>(
-                "Array index expected.",
-                () => { new JPath("[]"); });
+            ExceptionAssert.Throws<JsonException>(() => { new JPath("[]"); }, "Array index expected.");
         }
 
         [Test]
         public void IndexerCloseInProperty()
         {
-            ExceptionAssert.Throws<JsonException>(
-                "Unexpected character while parsing path: ]",
-                () => { new JPath("]"); });
+            ExceptionAssert.Throws<JsonException>(() => { new JPath("]"); }, "Unexpected character while parsing path: ]");
         }
 
         [Test]
@@ -661,9 +641,20 @@ namespace BESSy.Json.Tests.Linq.JsonPath
         [Test]
         public void MissingDotAfterIndexer()
         {
-            ExceptionAssert.Throws<JsonException>(
-                "Unexpected character following indexer: B",
-                () => { new JPath("[1]Blah"); });
+            ExceptionAssert.Throws<JsonException>(() => { new JPath("[1]Blah"); }, "Unexpected character following indexer: B");
+        }
+
+        [Test]
+        public void PropertyFollowingEscapedPropertyName()
+        {
+            JPath path = new JPath("frameworks.aspnetcore50.dependencies.['System.Xml.ReaderWriter'].source");
+            Assert.AreEqual(5, path.Filters.Count);
+
+            Assert.AreEqual("frameworks", ((FieldFilter)path.Filters[0]).Name);
+            Assert.AreEqual("aspnetcore50", ((FieldFilter)path.Filters[1]).Name);
+            Assert.AreEqual("dependencies", ((FieldFilter)path.Filters[2]).Name);
+            Assert.AreEqual("System.Xml.ReaderWriter", ((FieldFilter)path.Filters[3]).Name);
+            Assert.AreEqual("source", ((FieldFilter)path.Filters[4]).Name);
         }
     }
 }

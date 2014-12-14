@@ -29,13 +29,44 @@ using System.Globalization;
 using System.IO;
 using System.Text;
 using BESSy.Json.Serialization;
+#if NETFX_CORE
+using Microsoft.VisualStudio.TestPlatform.UnitTestFramework;
+using TestFixture = Microsoft.VisualStudio.TestPlatform.UnitTestFramework.TestClassAttribute;
+using Test = Microsoft.VisualStudio.TestPlatform.UnitTestFramework.TestMethodAttribute;
+#elif ASPNETCORE50
+using Xunit;
+using Test = Xunit.FactAttribute;
+using Assert = Newtonsoft.Json.Tests.XUnitAssert;
+#else
 using NUnit.Framework;
+#endif
 
 namespace BESSy.Json.Tests.Serialization
 {
     [TestFixture]
     public class ShouldSerializeTests : TestFixtureBase
     {
+        public class A
+        {
+        }
+
+        public class B
+        {
+            public A A { get; set; }
+            public virtual bool ShouldSerializeA()
+            {
+                return false;
+            }
+        }
+
+        [Test]
+        public void VirtualShouldSerializeSimple()
+        {
+            string json = JsonConvert.SerializeObject(new B());
+
+            Assert.AreEqual("{}", json);
+        }
+
         [Test]
         public void VirtualShouldSerialize()
         {
@@ -72,9 +103,9 @@ namespace BESSy.Json.Tests.Serialization
             var deserializedSetFoo = JsonConvert.DeserializeObject<Foo1>(setFooJson);
 
             Assert.AreEqual(setFoo.name, deserializedSetFoo.name);
-            Assert.NotNull(deserializedSetFoo.myBar);
+            Assert.IsNotNull(deserializedSetFoo.myBar);
             Assert.AreEqual(setFoo.myBar.name, deserializedSetFoo.myBar.name);
-            Assert.NotNull(deserializedSetFoo.myBar.myBaz);
+            Assert.IsNotNull(deserializedSetFoo.myBar.myBaz);
             Assert.AreEqual(setFoo.myBar.myBaz.Length, deserializedSetFoo.myBar.myBaz.Length);
             Assert.AreEqual(setFoo.myBar.myBaz[0].name, deserializedSetFoo.myBar.myBaz[0].name);
             Assert.IsNotNull(deserializedSetFoo.myBar.myBaz[0].myFrob[0]);
@@ -104,7 +135,7 @@ namespace BESSy.Json.Tests.Serialization
                 jsonSerializer.Serialize(jsonWriter, f, typeof(Foo1));
             }
 
-            Console.Out.WriteLine("Trace output:\n{0}", traceWriter.ToString());
+            Console.WriteLine("Trace output:\n{0}", traceWriter.ToString());
 
             return sw.ToString();
         }
@@ -118,14 +149,14 @@ namespace BESSy.Json.Tests.Serialization
 
             string json = JsonConvert.SerializeObject(c, Formatting.Indented);
 
-            Assert.AreEqual(@"{
+            StringAssert.AreEqual(@"{
   ""Age"": 27
 }", json);
 
             c._shouldSerializeName = true;
             json = JsonConvert.SerializeObject(c, Formatting.Indented);
 
-            Assert.AreEqual(@"{
+            StringAssert.AreEqual(@"{
   ""Name"": ""James"",
   ""Age"": 27
 }", json);
@@ -172,7 +203,7 @@ namespace BESSy.Json.Tests.Serialization
 
             string json = JsonConvert.SerializeObject(c, Formatting.Indented);
 
-            Assert.AreEqual(@"{
+            StringAssert.AreEqual(@"{
   ""Age"": 27
 }", json);
 
@@ -190,7 +221,7 @@ namespace BESSy.Json.Tests.Serialization
             c.FavoriteNumber = 23;
             json = JsonConvert.SerializeObject(c, Formatting.Indented);
 
-            Assert.AreEqual(@"{
+            StringAssert.AreEqual(@"{
   ""Name"": ""James"",
   ""Age"": 27,
   ""Weight"": 0,
@@ -329,7 +360,7 @@ namespace BESSy.Json.Tests.Serialization
 
             string json = JsonConvert.SerializeObject(joe, Formatting.Indented);
 
-            Assert.AreEqual(@"{
+            StringAssert.AreEqual(@"{
   ""Age"": 100,
   ""Name"": ""Joe Employee"",
   ""Manager"": {

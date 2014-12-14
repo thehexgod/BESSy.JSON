@@ -25,7 +25,7 @@
 
 using System;
 using System.Collections;
-#if !(NET35 || NET20 || PORTABLE || PORTABLE40)
+#if !(NET35 || NET20 || PORTABLE || ASPNETCORE50 || PORTABLE40)
 using System.Collections.Concurrent;
 #endif
 using System.Collections.Generic;
@@ -40,13 +40,69 @@ using System.Linq;
 using System.Text;
 using BESSy.Json.Linq;
 using BESSy.Json.Tests.TestObjects;
+#if NETFX_CORE
+using Microsoft.VisualStudio.TestPlatform.UnitTestFramework;
+using TestFixture = Microsoft.VisualStudio.TestPlatform.UnitTestFramework.TestClassAttribute;
+using Test = Microsoft.VisualStudio.TestPlatform.UnitTestFramework.TestMethodAttribute;
+#elif ASPNETCORE50
+using Xunit;
+using Test = Xunit.FactAttribute;
+using Assert = Newtonsoft.Json.Tests.XUnitAssert;
+#else
 using NUnit.Framework;
+#endif
 
 namespace BESSy.Json.Tests.Serialization
 {
     [TestFixture]
     public class JsonSerializerCollectionsTests : TestFixtureBase
     {
+        [Test]
+        public void MultiDObjectArray()
+        {
+            object[,] myOtherArray =
+            {
+                { new KeyValuePair<string, double>("my value", 0.8), "foobar" },
+                { true, 0.4d },
+                { 0.05f, 6 }
+            };
+
+            string myOtherArrayAsString = JsonConvert.SerializeObject(myOtherArray, Formatting.Indented);
+
+            StringAssert.AreEqual(@"[
+  [
+    {
+      ""Key"": ""my value"",
+      ""Value"": 0.8
+    },
+    ""foobar""
+  ],
+  [
+    true,
+    0.4
+  ],
+  [
+    0.05,
+    6
+  ]
+]", myOtherArrayAsString);
+
+            JObject o = JObject.Parse(@"{
+              ""Key"": ""my value"",
+              ""Value"": 0.8
+            }");
+
+            object[,] myOtherResult = JsonConvert.DeserializeObject<object[,]>(myOtherArrayAsString);
+            Assert.IsTrue(JToken.DeepEquals(o, (JToken)myOtherResult[0, 0]));
+            Assert.AreEqual("foobar", myOtherResult[0, 1]);
+
+            Assert.AreEqual(true, myOtherResult[1, 0]);
+            Assert.AreEqual(0.4, myOtherResult[1, 1]);
+
+            Assert.AreEqual(0.05, myOtherResult[2, 0]);
+            Assert.AreEqual(6, myOtherResult[2, 1]);
+        }
+
         public class EnumerableClass<T> : IEnumerable<T>
         {
             private readonly IList<T> _values;
@@ -113,9 +169,8 @@ namespace BESSy.Json.Tests.Serialization
   ""3""
 ]";
 
-            ExceptionAssert.Throws<JsonSerializationException>(
+            ExceptionAssert.Throws<JsonSerializationException>(() => JsonConvert.DeserializeObject<EnumerableClassFailure<string>>(json), "Cannot create and populate list type Newtonsoft.Json.Tests.Serialization.JsonSerializerCollectionsTests+EnumerableClassFailure`1[System.String]. Path '', line 1, position 1.");
                 "Cannot create and populate list type BESSy.Json.Tests.Serialization.JsonSerializerCollectionsTests+EnumerableClassFailure`1[System.String]. Path '', line 1, position 1.",
-                () => JsonConvert.DeserializeObject<EnumerableClassFailure<string>>(json));
         }
 
         public class PrivateDefaultCtorList<T> : List<T>
@@ -128,10 +183,8 @@ namespace BESSy.Json.Tests.Serialization
         [Test]
         public void DeserializePrivateListCtor()
         {
-            ExceptionAssert.Throws<JsonSerializationException>(
+            ExceptionAssert.Throws<JsonSerializationException>(() => JsonConvert.DeserializeObject<PrivateDefaultCtorList<int>>("[1,2]"), "Unable to find a constructor to use for type Newtonsoft.Json.Tests.Serialization.JsonSerializerCollectionsTests+PrivateDefaultCtorList`1[System.Int32]. Path '', line 1, position 1.");
                 "Unable to find a constructor to use for type BESSy.Json.Tests.Serialization.JsonSerializerCollectionsTests+PrivateDefaultCtorList`1[System.Int32]. Path '', line 1, position 1.",
-                () => JsonConvert.DeserializeObject<PrivateDefaultCtorList<int>>("[1,2]")
-                );
 
             var list = JsonConvert.DeserializeObject<PrivateDefaultCtorList<int>>("[1,2]", new JsonSerializerSettings
             {
@@ -308,7 +361,7 @@ namespace BESSy.Json.Tests.Serialization
             CustomReadOnlyDictionary<string, int> dic = new CustomReadOnlyDictionary<string, int>(d);
 
             string json = JsonConvert.SerializeObject(dic, Formatting.Indented);
-            Assert.AreEqual(@"{
+            StringAssert.AreEqual(@"{
   ""one"": 1,
   ""two"": 2
 }", json);
@@ -352,7 +405,7 @@ namespace BESSy.Json.Tests.Serialization
             CustomReadOnlyCollection<int> list = new CustomReadOnlyCollection<int>(l);
 
             string json = JsonConvert.SerializeObject(list, Formatting.Indented);
-            Assert.AreEqual(@"[
+            StringAssert.AreEqual(@"[
   1,
   2,
   3
@@ -441,7 +494,7 @@ namespace BESSy.Json.Tests.Serialization
 
             string json = JsonConvert.SerializeObject(list, Formatting.Indented);
 
-            Assert.AreEqual(@"[
+            StringAssert.AreEqual(@"[
   {
     ""Key"": ""key1"",
     ""Value"": {
@@ -527,7 +580,7 @@ namespace BESSy.Json.Tests.Serialization
 
             string json = JsonConvert.SerializeObject(v1, Formatting.Indented);
 
-            Assert.AreEqual(@"{
+            StringAssert.AreEqual(@"{
   ""First"": 1,
   ""Second"": null,
   ""Third"": 3
@@ -540,7 +593,7 @@ namespace BESSy.Json.Tests.Serialization
             Assert.AreEqual(3, v2["Third"]);
         }
 
-#if !(NET35 || NET20 || PORTABLE || PORTABLE40)
+#if !(NET35 || NET20 || PORTABLE || ASPNETCORE50 || PORTABLE40)
         [Test]
         public void DeserializeConcurrentDictionary()
         {
@@ -557,7 +610,7 @@ namespace BESSy.Json.Tests.Serialization
 
             string originalJson = JsonConvert.SerializeObject(go, Formatting.Indented);
 
-            Assert.AreEqual(@"{
+            StringAssert.AreEqual(@"{
   ""Components"": {
     ""Key!"": {}
   },
@@ -615,9 +668,7 @@ namespace BESSy.Json.Tests.Serialization
         {
             string json = @"[ null ]";
 
-            ExceptionAssert.Throws<JsonSerializationException>(
-                "Cannot convert null value to KeyValuePair. Path '[0]', line 1, position 6.",
-                () => { JsonConvert.DeserializeObject<IList<KeyValuePair<string, IList<string>>>>(json); });
+            ExceptionAssert.Throws<JsonSerializationException>(() => { JsonConvert.DeserializeObject<IList<KeyValuePair<string, IList<string>>>>(json); }, "Cannot convert null value to KeyValuePair. Path '[0]', line 1, position 6.");
         }
 
 #if !(NET40 || NET35 || NET20 || PORTABLE40)
@@ -664,7 +715,7 @@ namespace BESSy.Json.Tests.Serialization
 
             string json = JsonConvert.SerializeObject(c1, Formatting.Indented);
 
-            Assert.AreEqual(@"{
+            StringAssert.AreEqual(@"{
   ""NonReadOnlyList"": [
     1
   ],
@@ -784,7 +835,7 @@ namespace BESSy.Json.Tests.Serialization
 
             string json = JsonConvert.SerializeObject(aa, Formatting.Indented);
 
-            Assert.AreEqual(@"{
+            StringAssert.AreEqual(@"{
   ""Before"": ""Before!"",
   ""Coordinates"": [
     [
@@ -933,9 +984,7 @@ namespace BESSy.Json.Tests.Serialization
         {
             string json = @"{""Before"":""Before!"",""Coordinates"":[[1,1],[1,2,3],[2,1],[2,2]],""After"":""After!""}";
 
-            ExceptionAssert.Throws<Exception>(
-                "Cannot deserialize non-cubical array as multidimensional array.",
-                () => JsonConvert.DeserializeObject<Array2D>(json));
+            ExceptionAssert.Throws<Exception>(() => JsonConvert.DeserializeObject<Array2D>(json), "Cannot deserialize non-cubical array as multidimensional array.");
         }
 
         [Test]
@@ -943,9 +992,7 @@ namespace BESSy.Json.Tests.Serialization
         {
             string json = @"{""Before"":""Before!"",""Coordinates"":[[1,1],[1],[2,1],[2,2]],""After"":""After!""}";
 
-            ExceptionAssert.Throws<Exception>(
-                "Cannot deserialize non-cubical array as multidimensional array.",
-                () => JsonConvert.DeserializeObject<Array2D>(json));
+            ExceptionAssert.Throws<Exception>(() => JsonConvert.DeserializeObject<Array2D>(json), "Cannot deserialize non-cubical array as multidimensional array.");
         }
 
         [Test]
@@ -973,9 +1020,7 @@ namespace BESSy.Json.Tests.Serialization
         {
             string json = @"{""Before"":""Before!"",""Coordinates"":[[[1,1,1],[1,1,2,1]],[[1,2,1],[1,2,2]],[[2,1,1],[2,1,2]],[[2,2,1],[2,2,2]]],""After"":""After!""}";
 
-            ExceptionAssert.Throws<Exception>(
-                "Cannot deserialize non-cubical array as multidimensional array.",
-                () => JsonConvert.DeserializeObject<Array3D>(json));
+            ExceptionAssert.Throws<Exception>(() => JsonConvert.DeserializeObject<Array3D>(json), "Cannot deserialize non-cubical array as multidimensional array.");
         }
 
         [Test]
@@ -983,9 +1028,7 @@ namespace BESSy.Json.Tests.Serialization
         {
             string json = @"{""Before"":""Before!"",""Coordinates"":[[[1,1,1],[1,1,2]],[[1,2,1],[1,2,2]],[[2,1,1],[2,1,2]],[[2,2,1],{}]],""After"":""After!""}";
 
-            ExceptionAssert.Throws<JsonSerializationException>(
-                "Unexpected token when deserializing multidimensional array: StartObject. Path 'Coordinates[3][1]', line 1, position 99.",
-                () => JsonConvert.DeserializeObject<Array3D>(json));
+            ExceptionAssert.Throws<JsonSerializationException>(() => JsonConvert.DeserializeObject<Array3D>(json), "Unexpected token when deserializing multidimensional array: StartObject. Path 'Coordinates[3][1]', line 1, position 99.");
         }
 
         [Test]
@@ -993,9 +1036,7 @@ namespace BESSy.Json.Tests.Serialization
         {
             string json = @"{""Before"":""Before!"",""Coordinates"":[[[1,1,1],[1,1]],[[1,2,1],[1,2,2]],[[2,1,1],[2,1,2]],[[2,2,1],[2,2,2]]],""After"":""After!""}";
 
-            ExceptionAssert.Throws<Exception>(
-                "Cannot deserialize non-cubical array as multidimensional array.",
-                () => JsonConvert.DeserializeObject<Array3D>(json));
+            ExceptionAssert.Throws<Exception>(() => JsonConvert.DeserializeObject<Array3D>(json), "Cannot deserialize non-cubical array as multidimensional array.");
         }
 
         [Test]
@@ -1034,9 +1075,7 @@ namespace BESSy.Json.Tests.Serialization
         {
             string json = @"{""Before"":""Before!"",""Coordinates"":[/*hi*/[/*hi*/[1/*hi*/,/*hi*/1/*hi*/,1]/*hi*/,/*hi*/[1,1";
 
-            ExceptionAssert.Throws<JsonException>(
-                null,
-                () => JsonConvert.DeserializeObject<Array3D>(json));
+            ExceptionAssert.Throws<JsonException>(() => JsonConvert.DeserializeObject<Array3D>(json));
         }
 
         [Test]
@@ -1044,9 +1083,7 @@ namespace BESSy.Json.Tests.Serialization
         {
             string json = @"{""Before"":""Before!"",""Coordinates"":[/*hi*/[/*hi*/";
 
-            ExceptionAssert.Throws<JsonException>(
-                null,
-                () => JsonConvert.DeserializeObject<Array3D>(json));
+            ExceptionAssert.Throws<JsonException>(() => JsonConvert.DeserializeObject<Array3D>(json));
         }
 
         [Test]
@@ -1103,7 +1140,7 @@ namespace BESSy.Json.Tests.Serialization
                 Formatting = Formatting.Indented
             });
 
-            Assert.AreEqual(@"{
+            StringAssert.AreEqual(@"{
   ""$id"": ""1"",
   ""$values"": [
     {
@@ -1157,7 +1194,7 @@ namespace BESSy.Json.Tests.Serialization
                 Formatting = Formatting.Indented
             });
 
-            Assert.AreEqual(@"{
+            StringAssert.AreEqual(@"{
   ""$type"": ""System.Collections.Generic.List`1[[BESSy.Json.Tests.TestObjects.Event1[,], BESSy.Json.Tests]], mscorlib"",
   ""$values"": [
     {
@@ -1270,7 +1307,7 @@ namespace BESSy.Json.Tests.Serialization
             Assert.AreEqual(1, (int)((JObject)o.Data[2])["one"]);
         }
 
-#if !NETFX_CORE
+#if !(NETFX_CORE || ASPNETCORE50)
         [Test]
         public void SerializeArrayAsArrayList()
         {
@@ -1296,7 +1333,7 @@ namespace BESSy.Json.Tests.Serialization
 
             string json = JsonConvert.SerializeObject(name, Formatting.Indented);
 
-            Assert.AreEqual(@"{
+            StringAssert.AreEqual(@"{
   ""personsName"": ""The Idiot in Next To Me"",
   ""pNumbers"": [
     {
@@ -1435,7 +1472,7 @@ namespace BESSy.Json.Tests.Serialization
             //  }
             //]
 
-            Assert.AreEqual(@"[
+            StringAssert.AreEqual(@"[
   {
     ""Name"": ""Product 1"",
     ""ExpiryDate"": ""2000-12-29T00:00:00Z"",
@@ -1482,7 +1519,57 @@ namespace BESSy.Json.Tests.Serialization
             Assert.AreEqual(2, products.Count);
             Assert.AreEqual("Product 1", products[0].Name);
         }
+
+#if !(NET40 || NET35 || NET20 || PORTABLE40)
+        [Test]
+        public void ReadOnlyIntegerList()
+        {
+            ReadOnlyIntegerList l = new ReadOnlyIntegerList(new List<int>
+            {
+                1,
+                2,
+                3,
+                int.MaxValue
+            });
+
+            string json = JsonConvert.SerializeObject(l, Formatting.Indented);
+
+            StringAssert.AreEqual(@"[
+  1,
+  2,
+  3,
+  2147483647
+]", json);
+        }
+#endif
     }
+
+#if !(NET40 || NET35 || NET20 || PORTABLE40)
+    public class ReadOnlyIntegerList : IReadOnlyCollection<int>
+    {
+        private readonly List<int> _list;
+
+        public ReadOnlyIntegerList(List<int> l)
+        {
+            _list = l;
+        }
+
+        public int Count
+        {
+            get { return _list.Count; }
+        }
+
+        public IEnumerator<int> GetEnumerator()
+        {
+            return _list.GetEnumerator();
+        }
+
+        IEnumerator IEnumerable.GetEnumerator()
+        {
+            return GetEnumerator();
+        }
+    }
+#endif
 
     public class Array2D
     {

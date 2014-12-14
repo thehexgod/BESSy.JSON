@@ -28,13 +28,16 @@ using System.Collections.Generic;
 using System.IO;
 using BESSy.Json.Linq;
 using BESSy.Json.Schema;
-#if !NETFX_CORE
-using NUnit.Framework;
-
-#else
+#if NETFX_CORE
 using Microsoft.VisualStudio.TestPlatform.UnitTestFramework;
 using TestFixture = Microsoft.VisualStudio.TestPlatform.UnitTestFramework.TestClassAttribute;
 using Test = Microsoft.VisualStudio.TestPlatform.UnitTestFramework.TestMethodAttribute;
+#elif ASPNETCORE50
+using Xunit;
+using Test = Xunit.FactAttribute;
+using Assert = Newtonsoft.Json.Tests.XUnitAssert;
+#else
+using NUnit.Framework;
 #endif
 
 namespace BESSy.Json.Tests.Schema
@@ -86,7 +89,7 @@ namespace BESSy.Json.Tests.Schema
             third.WriteTo(jsonWriter, resolver);
 
             string writtenJson = writer.ToString();
-            Assert.AreEqual(@"{
+            StringAssert.AreEqual(@"{
   ""id"": ""third"",
   ""type"": ""object"",
   ""additionalProperties"": false,
@@ -102,7 +105,7 @@ namespace BESSy.Json.Tests.Schema
             third.WriteTo(jsonWriter1);
 
             writtenJson = writer1.ToString();
-            Assert.AreEqual(@"{
+            StringAssert.AreEqual(@"{
   ""id"": ""third"",
   ""type"": ""object"",
   ""additionalProperties"": false,
@@ -138,7 +141,7 @@ namespace BESSy.Json.Tests.Schema
 
             string newJson = s.ToString();
 
-            Assert.AreEqual(@"{
+            StringAssert.AreEqual(@"{
   ""type"": ""object"",
   ""additionalProperties"": {
     ""type"": ""string""
@@ -163,7 +166,7 @@ namespace BESSy.Json.Tests.Schema
 
             newJson = s.ToString();
 
-            Assert.AreEqual(@"{
+            StringAssert.AreEqual(@"{
   ""type"": ""object"",
   ""additionalProperties"": {
     ""type"": ""string""
@@ -188,7 +191,7 @@ namespace BESSy.Json.Tests.Schema
 
             newJson = s.ToString();
 
-            Assert.AreEqual(@"{
+            StringAssert.AreEqual(@"{
   ""type"": ""object"",
   ""additionalProperties"": {
     ""type"": ""string""
@@ -221,7 +224,7 @@ namespace BESSy.Json.Tests.Schema
 
             string json = writer.ToString();
 
-            Assert.AreEqual(@"{
+            StringAssert.AreEqual(@"{
   ""description"": ""AdditionalProperties"",
   ""type"": [
     ""string"",
@@ -261,7 +264,7 @@ namespace BESSy.Json.Tests.Schema
 
             string json = writer.ToString();
 
-            Assert.AreEqual(@"{
+            StringAssert.AreEqual(@"{
   ""description"": ""A person"",
   ""type"": ""object"",
   ""properties"": {
@@ -296,7 +299,7 @@ namespace BESSy.Json.Tests.Schema
 
             string json = writer.ToString();
 
-            Assert.AreEqual(@"{
+            StringAssert.AreEqual(@"{
   ""description"": ""Type"",
   ""type"": [
     ""string"",
@@ -336,7 +339,7 @@ namespace BESSy.Json.Tests.Schema
 
             string writtenJson = writer.ToString();
 
-            Assert.AreEqual(@"{
+            StringAssert.AreEqual(@"{
   ""id"": ""CircularReferenceArray"",
   ""description"": ""CircularReference"",
   ""type"": ""array"",
@@ -364,7 +367,7 @@ namespace BESSy.Json.Tests.Schema
 
             string json = writer.ToString();
 
-            Assert.AreEqual(@"{
+            StringAssert.AreEqual(@"{
   ""description"": ""Type"",
   ""type"": [
     ""string"",
@@ -397,7 +400,7 @@ namespace BESSy.Json.Tests.Schema
 
             string json = writer.ToString();
 
-            Assert.AreEqual(@"{
+            StringAssert.AreEqual(@"{
   ""description"": ""Type"",
   ""type"": [
     ""string"",
@@ -423,7 +426,7 @@ namespace BESSy.Json.Tests.Schema
 
             string json = writer.ToString();
 
-            Assert.AreEqual(@"{
+            StringAssert.AreEqual(@"{
   ""items"": [
     {},
     {}
@@ -446,7 +449,7 @@ namespace BESSy.Json.Tests.Schema
 
             string json = writer.ToString();
 
-            Assert.AreEqual(@"{
+            StringAssert.AreEqual(@"{
   ""exclusiveMinimum"": true,
   ""exclusiveMaximum"": true
 }", json);
@@ -469,7 +472,7 @@ namespace BESSy.Json.Tests.Schema
 
             string json = writer.ToString();
 
-            Assert.AreEqual(@"{
+            StringAssert.AreEqual(@"{
   ""patternProperties"": {
     ""[abc]"": {}
   }
@@ -485,7 +488,7 @@ namespace BESSy.Json.Tests.Schema
 
             string json = schema.ToString();
 
-            Assert.AreEqual(@"{
+            StringAssert.AreEqual(@"{
   ""additionalItems"": {
     ""type"": ""integer""
   }
@@ -506,7 +509,7 @@ namespace BESSy.Json.Tests.Schema
 
             string json = writer.ToString();
 
-            Assert.AreEqual(@"{
+            StringAssert.AreEqual(@"{
   ""items"": []
 }", json);
         }
@@ -526,7 +529,7 @@ namespace BESSy.Json.Tests.Schema
 
             string json = writer.ToString();
 
-            Assert.AreEqual(@"{
+            StringAssert.AreEqual(@"{
   ""items"": [
     {
       ""type"": ""string""
@@ -549,7 +552,7 @@ namespace BESSy.Json.Tests.Schema
 
             string json = writer.ToString();
 
-            Assert.AreEqual(@"{
+            StringAssert.AreEqual(@"{
   ""items"": {
     ""type"": ""string""
   }

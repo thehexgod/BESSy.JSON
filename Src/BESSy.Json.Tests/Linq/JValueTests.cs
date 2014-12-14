@@ -27,16 +27,20 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using BESSy.Json.Tests.TestObjects;
-#if !(NET20 || NET35 || PORTABLE)
+#if !(NET20 || NET35 || PORTABLE || ASPNETCORE50)
 using System.Numerics;
 #endif
 using System.Text;
-#if !NETFX_CORE
-using NUnit.Framework;
-#else
+#if NETFX_CORE
 using Microsoft.VisualStudio.TestPlatform.UnitTestFramework;
 using TestFixture = Microsoft.VisualStudio.TestPlatform.UnitTestFramework.TestClassAttribute;
 using Test = Microsoft.VisualStudio.TestPlatform.UnitTestFramework.TestMethodAttribute;
+#elif ASPNETCORE50
+using Xunit;
+using Test = Xunit.FactAttribute;
+using Assert = Newtonsoft.Json.Tests.XUnitAssert;
+#else
+using NUnit.Framework;
 #endif
 using BESSy.Json.Linq;
 using System.Globalization;
@@ -52,6 +56,18 @@ namespace BESSy.Json.Tests.Linq
     [TestFixture]
     public class JValueTests : TestFixtureBase
     {
+        [Test]
+        public void UndefinedTests()
+        {
+            JValue v = JValue.CreateUndefined();
+
+            Assert.AreEqual(JTokenType.Undefined, v.Type);
+            Assert.AreEqual(null, v.Value);
+
+            Assert.AreEqual("", v.ToString());
+            Assert.AreEqual("undefined", v.ToString(Formatting.None));
+        }
+
         [Test]
         public void FloatParseHandling()
         {
@@ -112,7 +128,7 @@ namespace BESSy.Json.Tests.Linq
             Assert.AreEqual("Pie", v.Value);
             Assert.AreEqual(JTokenType.String, v.Type);
 
-#if !(NETFX_CORE || PORTABLE || PORTABLE40)
+#if !(NETFX_CORE || PORTABLE || ASPNETCORE50 || PORTABLE40)
             v.Value = DBNull.Value;
             Assert.AreEqual(DBNull.Value, v.Value);
             Assert.AreEqual(JTokenType.Null, v.Type);
@@ -141,7 +157,7 @@ namespace BESSy.Json.Tests.Linq
             Assert.AreEqual(g, v.Value);
             Assert.AreEqual(JTokenType.Guid, v.Type);
 
-#if !(NET20 || NET35 || PORTABLE || PORTABLE40)
+#if !(NET20 || NET35 || PORTABLE || ASPNETCORE50 || PORTABLE40)
             BigInteger i = BigInteger.Parse("123456789999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999990");
             v.Value = i;
             Assert.AreEqual(i, v.Value);
@@ -183,10 +199,10 @@ namespace BESSy.Json.Tests.Linq
             v = new JValue("I am a string!");
             Assert.AreEqual("I am a string!", v.ToString());
 
-            v = new JValue(null, JTokenType.Null);
+            v = JValue.CreateNull();
             Assert.AreEqual("", v.ToString());
 
-            v = new JValue(null, JTokenType.Null);
+            v = JValue.CreateNull();
             Assert.AreEqual("", v.ToString(null, CultureInfo.InvariantCulture));
 
             v = new JValue(new DateTime(2000, 12, 12, 20, 59, 59, DateTimeKind.Utc), JTokenType.Date);
@@ -201,13 +217,13 @@ namespace BESSy.Json.Tests.Linq
             v = new JValue(new Guid("B282ADE7-C520-496C-A448-4084F6803DE5"));
             Assert.AreEqual("b282ade7-c520-496c-a448-4084f6803de5", v.ToString(null, CultureInfo.InvariantCulture));
 
-#if !(NET20 || NET35 || PORTABLE || PORTABLE40)
+#if !(NET20 || NET35 || PORTABLE || ASPNETCORE50 || PORTABLE40)
             v = new JValue(BigInteger.Parse("123456789999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999990"));
             Assert.AreEqual("123456789999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999990", v.ToString(null, CultureInfo.InvariantCulture));
 #endif
         }
 
-#if !(NET20 || NET35 || PORTABLE || PORTABLE40)
+#if !(NET20 || NET35 || PORTABLE || ASPNETCORE50 || PORTABLE40)
         [Test]
         public void JValueParse()
         {
@@ -222,11 +238,10 @@ namespace BESSy.Json.Tests.Linq
         public void Last()
         {
             ExceptionAssert.Throws<InvalidOperationException>("Cannot access child value on BESSy.Json.Linq.JValue.",
-                () =>
-                {
-                    JValue v = new JValue(true);
-                    JToken last = v.Last;
-                });
+            {
+                JValue v = new JValue(true);
+                JToken last = v.Last;
+            }, "Cannot access child value on Newtonsoft.Json.Linq.JValue.");
         }
 
         [Test]
@@ -241,44 +256,40 @@ namespace BESSy.Json.Tests.Linq
         public void First()
         {
             ExceptionAssert.Throws<InvalidOperationException>("Cannot access child value on BESSy.Json.Linq.JValue.",
-                () =>
-                {
-                    JValue v = new JValue(true);
-                    JToken first = v.First;
-                });
+            {
+                JValue v = new JValue(true);
+                JToken first = v.First;
+            }, "Cannot access child value on Newtonsoft.Json.Linq.JValue.");
         }
 
         [Test]
         public void Item()
         {
             ExceptionAssert.Throws<InvalidOperationException>("Cannot access child value on BESSy.Json.Linq.JValue.",
-                () =>
-                {
-                    JValue v = new JValue(true);
-                    JToken first = v[0];
-                });
+            {
+                JValue v = new JValue(true);
+                JToken first = v[0];
+            }, "Cannot access child value on Newtonsoft.Json.Linq.JValue.");
         }
 
         [Test]
         public void Values()
         {
             ExceptionAssert.Throws<InvalidOperationException>("Cannot access child value on BESSy.Json.Linq.JValue.",
-                () =>
-                {
-                    JValue v = new JValue(true);
-                    v.Values<int>();
-                });
+            {
+                JValue v = new JValue(true);
+                v.Values<int>();
+            }, "Cannot access child value on Newtonsoft.Json.Linq.JValue.");
         }
 
         [Test]
         public void RemoveParentNull()
         {
-            ExceptionAssert.Throws<InvalidOperationException>("The parent is missing.",
-                () =>
-                {
-                    JValue v = new JValue(true);
-                    v.Remove();
-                });
+            ExceptionAssert.Throws<InvalidOperationException>(() =>
+            {
+                JValue v = new JValue(true);
+                v.Remove();
+            }, "The parent is missing.");
         }
 
         [Test]
@@ -320,22 +331,20 @@ namespace BESSy.Json.Tests.Linq
         public void SetValue()
         {
             ExceptionAssert.Throws<InvalidOperationException>("Cannot set child value on BESSy.Json.Linq.JValue.",
-                () =>
-                {
-                    JToken t = new JValue(5L);
-                    t[0] = new JValue(3);
-                });
+            {
+                JToken t = new JValue(5L);
+                t[0] = new JValue(3);
+            }, "Cannot set child value on Newtonsoft.Json.Linq.JValue.");
         }
 
         [Test]
         public void CastNullValueToNonNullable()
         {
-            ExceptionAssert.Throws<ArgumentException>("Can not convert Null to Int32.",
-                () =>
-                {
-                    JValue v = new JValue((object)null);
-                    int i = (int)v;
-                });
+            ExceptionAssert.Throws<ArgumentException>(() =>
+            {
+                JValue v = JValue.CreateNull();
+                int i = (int)v;
+            }, "Can not convert Null to Int32.");
         }
 
         [Test]
@@ -394,7 +403,7 @@ namespace BESSy.Json.Tests.Linq
             var jTokenWriter = new JTokenWriter();
             new JsonSerializer().Serialize(jTokenWriter, rate);
             string json = jTokenWriter.Token.ToString();
-            Assert.AreEqual(@"{
+            StringAssert.AreEqual(@"{
   ""Compoundings"": 12.166666666666666666666666667
 }", json);
         }
@@ -463,7 +472,7 @@ namespace BESSy.Json.Tests.Linq
         }
 #endif
 
-#if !(NETFX_CORE || PORTABLE)
+#if !(NETFX_CORE || PORTABLE || ASPNETCORE50)
         [Test]
         public void ConvertsToBoolean()
         {
@@ -482,7 +491,7 @@ namespace BESSy.Json.Tests.Linq
             Assert.AreEqual(Int32.MaxValue, Convert.ToInt32(new JValue(Int32.MaxValue)));
         }
 
-#if !(NET20 || NET35 || PORTABLE || PORTABLE40)
+#if !(NET20 || NET35 || PORTABLE || ASPNETCORE50 || PORTABLE40)
         [Test]
         public void ConvertsToInt32_BigInteger()
         {
@@ -577,7 +586,7 @@ namespace BESSy.Json.Tests.Linq
         [Test]
         public void ConvertsToString_Null()
         {
-            Assert.AreEqual(string.Empty, Convert.ToString(new JValue((object)null)));
+            Assert.AreEqual(string.Empty, Convert.ToString(JValue.CreateNull()));
         }
 
         [Test]
@@ -644,7 +653,7 @@ namespace BESSy.Json.Tests.Linq
             v = new JValue(new Uri("http://www.google.com"));
             Assert.AreEqual(TypeCode.Object, v.GetTypeCode());
 
-#if !(NET20 || NET35 || PORTABLE || PORTABLE40)
+#if !(NET20 || NET35 || PORTABLE || ASPNETCORE50 || PORTABLE40)
             v = new JValue(new BigInteger(3));
             Assert.AreEqual(TypeCode.Object, v.GetTypeCode());
 #endif
@@ -658,7 +667,7 @@ namespace BESSy.Json.Tests.Linq
             int i = (int)v.ToType(typeof(int), CultureInfo.InvariantCulture);
             Assert.AreEqual(9, i);
 
-#if !(NET20 || NET35 || PORTABLE)
+#if !(NET20 || NET35 || PORTABLE || ASPNETCORE50)
             BigInteger bi = (BigInteger)v.ToType(typeof(BigInteger), CultureInfo.InvariantCulture);
             Assert.AreEqual(new BigInteger(9), bi);
 #endif
@@ -673,7 +682,7 @@ namespace BESSy.Json.Tests.Linq
             Assert.AreEqual("2013", v.ToString("yyyy"));
         }
 
-#if !(NET20 || NET35 || PORTABLE || PORTABLE40)
+#if !(NET20 || NET35 || PORTABLE || ASPNETCORE50 || PORTABLE40)
         [Test]
         public void ToStringNewTypes()
         {
@@ -683,7 +692,7 @@ namespace BESSy.Json.Tests.Linq
                 new JValue(1.1f)
                 );
 
-            Assert.AreEqual(@"[
+            StringAssert.AreEqual(@"[
   ""2013-02-01T01:02:03.004+01:00"",
   5,
   1.1
@@ -739,9 +748,65 @@ namespace BESSy.Json.Tests.Linq
 
             string json = o.ToString(Formatting.Indented, new ReadOnlyStringConverter());
 
-            Assert.AreEqual(@"{
+            StringAssert.AreEqual(@"{
   ""name"": ""Hello World""
 }", json);
         }
+
+#if !(NET20 || NET35 || PORTABLE40)
+        [Test]
+        public void EnumTests()
+        {
+            JValue v = new JValue(StringComparison.Ordinal);
+            Assert.AreEqual(JTokenType.Integer, v.Type);
+
+            string s = v.ToString();
+            Assert.AreEqual("Ordinal", s);
+
+            StringComparison e = v.ToObject<StringComparison>();
+            Assert.AreEqual(StringComparison.Ordinal, e);
+
+            dynamic d = new JValue(StringComparison.CurrentCultureIgnoreCase);
+            StringComparison e2 = (StringComparison)d;
+            Assert.AreEqual(StringComparison.CurrentCultureIgnoreCase, e2);
+
+            string s1 = d.ToString();
+            Assert.AreEqual("CurrentCultureIgnoreCase", s1);
+
+            string s2 = (string)d;
+            Assert.AreEqual("CurrentCultureIgnoreCase", s2);
+
+            d = new JValue("OrdinalIgnoreCase");
+            StringComparison e3 = (StringComparison)d;
+            Assert.AreEqual(StringComparison.OrdinalIgnoreCase, e3);
+
+            v = new JValue("ORDINAL");
+            d = v;
+            StringComparison e4 = (StringComparison)d;
+            Assert.AreEqual(StringComparison.Ordinal, e4);
+
+            StringComparison e5 = v.ToObject<StringComparison>();
+            Assert.AreEqual(StringComparison.Ordinal, e5);
+
+            v = new JValue((int)StringComparison.OrdinalIgnoreCase);
+            Assert.AreEqual(JTokenType.Integer, v.Type);
+            StringComparison e6 = v.ToObject<StringComparison>();
+            Assert.AreEqual(StringComparison.OrdinalIgnoreCase, e6);
+
+            // does not support EnumMember. breaking change to add
+            ExceptionAssert.Throws<ArgumentException>(() =>
+            {
+                d = new JValue("value_a");
+                EnumA e7 = (EnumA)d;
+                Assert.AreEqual(EnumA.ValueA, e7);
+            }, "Requested value 'value_a' was not found.");
+        }
+
+        public enum EnumA
+        {
+            [EnumMember(Value = "value_a")]
+            ValueA
+        }
+#endif
     }
 }

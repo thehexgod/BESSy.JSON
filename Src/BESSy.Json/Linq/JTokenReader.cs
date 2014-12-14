@@ -57,10 +57,10 @@ namespace BESSy.Json.Linq
         }
 
         /// <summary>
-        /// Reads the next JSON token from the stream as a <see cref="T:Byte[]"/>.
+        /// Reads the next JSON token from the stream as a <see cref="Byte"/>[].
         /// </summary>
         /// <returns>
-        /// A <see cref="T:Byte[]"/> or a null reference if the next JSON token is null. This method will return <c>null</c> at the end of an array.
+        /// A <see cref="Byte"/>[] or a null reference if the next JSON token is null. This method will return <c>null</c> at the end of an array.
         /// </returns>
         public override byte[] ReadAsBytes()
         {
@@ -167,11 +167,6 @@ namespace BESSy.Json.Linq
         {
             SetToken(JsonToken.None);
             return false;
-        }
-
-        private bool IsEndElement
-        {
-            get { return (_current == _parent); }
         }
 
         private JsonToken? GetEndToken(JContainer c)
@@ -293,7 +288,7 @@ namespace BESSy.Json.Linq
             if (CurrentState == State.Start)
                 return false;
 
-            IJsonLineInfo info = IsEndElement ? null : _current;
+            IJsonLineInfo info = _current;
             return (info != null && info.HasLineInfo());
         }
 
@@ -304,7 +299,7 @@ namespace BESSy.Json.Linq
                 if (CurrentState == State.Start)
                     return 0;
 
-                IJsonLineInfo info = IsEndElement ? null : _current;
+                IJsonLineInfo info = _current;
                 if (info != null)
                     return info.LineNumber;
 
@@ -319,7 +314,7 @@ namespace BESSy.Json.Linq
                 if (CurrentState == State.Start)
                     return 0;
 
-                IJsonLineInfo info = IsEndElement ? null : _current;
+                IJsonLineInfo info = _current;
                 if (info != null)
                     return info.LinePosition;
 
@@ -341,8 +336,8 @@ namespace BESSy.Json.Linq
                     if (string.IsNullOrEmpty(path))
                         return _initialPath;
 
-                    if (_initialPath.EndsWith("]", StringComparison.OrdinalIgnoreCase)
-                        || path.StartsWith("[", StringComparison.OrdinalIgnoreCase))
+                    if (_initialPath.EndsWith(']')
+                        || path.StartsWith('['))
                         path = _initialPath + path;
                     else
                         path = _initialPath + "." + path;

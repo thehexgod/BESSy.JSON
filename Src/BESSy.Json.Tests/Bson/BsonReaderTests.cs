@@ -30,17 +30,21 @@ using System.Reflection;
 using System.Runtime.Serialization;
 using BESSy.Json.Serialization;
 using BESSy.Json.Tests.TestObjects;
-#if !(NET20 || NET35 || PORTABLE)
+#if !(NET20 || NET35 || PORTABLE || ASPNETCORE50)
 using System.Numerics;
 #endif
 using System.Text;
 using System.Text.RegularExpressions;
-#if !NETFX_CORE
-using NUnit.Framework;
-#else
+#if NETFX_CORE
 using Microsoft.VisualStudio.TestPlatform.UnitTestFramework;
 using TestFixture = Microsoft.VisualStudio.TestPlatform.UnitTestFramework.TestClassAttribute;
 using Test = Microsoft.VisualStudio.TestPlatform.UnitTestFramework.TestMethodAttribute;
+#elif ASPNETCORE50
+using Xunit;
+using Test = Xunit.FactAttribute;
+using Assert = Newtonsoft.Json.Tests.XUnitAssert;
+#else
+using NUnit.Framework;
 #endif
 using BESSy.Json.Bson;
 using System.IO;
@@ -54,6 +58,67 @@ namespace BESSy.Json.Tests.Bson
     public class BsonReaderTests : TestFixtureBase
     {
         private const char Euro = '\u20ac';
+
+#if !NETFX_CORE
+        [Test]
+        public void DeserializeLargeBsonObject()
+        {
+            byte[] data = System.IO.File.ReadAllBytes(@"SpaceShipV2.bson");
+
+            MemoryStream ms = new MemoryStream(data);
+            BsonReader reader = new BsonReader(ms);
+
+            JObject o = (JObject)JToken.ReadFrom(reader);
+
+            Assert.AreEqual("1", (string)o["$id"]);
+        }
+#endif
+
+        public class MyTest
+        {
+            public DateTime TimeStamp { get; set; }
+            public string UserName { get; set; }
+            public MemoryStream Blob { get; set; }
+        }
+
+        public void Bson_SupportMultipleContent()
+        {
+            MemoryStream myStream = new MemoryStream();
+            BsonWriter writer = new BsonWriter(myStream);
+            JsonSerializer serializer = new JsonSerializer();
+            MyTest tst1 = new MyTest
+            {
+                TimeStamp = new DateTime(2000, 12, 20, 12, 59, 59, DateTimeKind.Utc),
+                UserName = "Joe Doe"
+            };
+            MyTest tst2 = new MyTest
+            {
+                TimeStamp = new DateTime(2010, 12, 20, 12, 59, 59, DateTimeKind.Utc),
+                UserName = "Bob"
+            };
+            serializer.Serialize(writer, tst1);
+            serializer.Serialize(writer, tst2);
+
+            myStream.Seek(0, SeekOrigin.Begin);
+
+            BsonReader reader = new BsonReader(myStream)
+            {
+                SupportMultipleContent = true,
+                DateTimeKindHandling = DateTimeKind.Utc
+            };
+
+            MyTest tst1A = serializer.Deserialize<MyTest>(reader);
+
+            reader.Read();
+
+            MyTest tst2A = serializer.Deserialize<MyTest>(reader);
+
+            Assert.AreEqual(tst1.UserName, tst1A.UserName);
+            Assert.AreEqual(tst1.TimeStamp, tst1A.TimeStamp);
+
+            Assert.AreEqual(tst2.UserName, tst2A.UserName);
+            Assert.AreEqual(tst2.TimeStamp, tst2A.TimeStamp);
+        }
 
         [Test]
         public void CloseInput()
@@ -150,8 +215,8 @@ namespace BESSy.Json.Tests.Bson
 
             Assert.IsTrue(reader.Read());
             Assert.AreEqual(JsonToken.Bytes, reader.TokenType);
-            CollectionAssert.AreEqual(g.ToByteArray(), (byte[])reader.Value);
-            Assert.AreEqual(typeof(byte[]), reader.ValueType);
+            Assert.AreEqual(g, reader.Value);
+            Assert.AreEqual(typeof(Guid), reader.ValueType);
 
             Assert.IsTrue(reader.Read());
             Assert.AreEqual(JsonToken.EndArray, reader.TokenType);
@@ -404,29 +469,27 @@ namespace BESSy.Json.Tests.Bson
         [Test]
         public void ReadAsInt32BadString()
         {
-            ExceptionAssert.Throws<JsonReaderException>(
-                "Could not convert string to integer: a. Path '[0]'.",
-                () =>
-                {
-                    byte[] data = HexToBytes("20-00-00-00-02-30-00-02-00-00-00-61-00-02-31-00-02-00-00-00-62-00-02-32-00-02-00-00-00-63-00-00");
+            ExceptionAssert.Throws<JsonReaderException>(() =>
+            {
+                byte[] data = HexToBytes("20-00-00-00-02-30-00-02-00-00-00-61-00-02-31-00-02-00-00-00-62-00-02-32-00-02-00-00-00-63-00-00");
 
-                    MemoryStream ms = new MemoryStream(data);
-                    BsonReader reader = new BsonReader(ms);
+                MemoryStream ms = new MemoryStream(data);
+                BsonReader reader = new BsonReader(ms);
 
-                    Assert.AreEqual(false, reader.ReadRootValueAsArray);
-                    Assert.AreEqual(DateTimeKind.Local, reader.DateTimeKindHandling);
+                Assert.AreEqual(false, reader.ReadRootValueAsArray);
+                Assert.AreEqual(DateTimeKind.Local, reader.DateTimeKindHandling);
 
-                    reader.ReadRootValueAsArray = true;
-                    reader.DateTimeKindHandling = DateTimeKind.Utc;
+                reader.ReadRootValueAsArray = true;
+                reader.DateTimeKindHandling = DateTimeKind.Utc;
 
-                    Assert.AreEqual(true, reader.ReadRootValueAsArray);
-                    Assert.AreEqual(DateTimeKind.Utc, reader.DateTimeKindHandling);
+                Assert.AreEqual(true, reader.ReadRootValueAsArray);
+                Assert.AreEqual(DateTimeKind.Utc, reader.DateTimeKindHandling);
 
-                    Assert.IsTrue(reader.Read());
-                    Assert.AreEqual(JsonToken.StartArray, reader.TokenType);
+                Assert.IsTrue(reader.Read());
+                Assert.AreEqual(JsonToken.StartArray, reader.TokenType);
 
-                    reader.ReadAsInt32();
-                });
+                reader.ReadAsInt32();
+            }, "Could not convert string to integer: a. Path '[0]'.");
         }
 
         [Test]
@@ -808,10 +871,7 @@ namespace BESSy.Json.Tests.Bson
 
             Assert.IsTrue(reader.Read());
             Assert.AreEqual(JsonToken.String, reader.TokenType);
-            Assert.AreEqual(@"for (int i = 0; i < 1000; i++)
-{
-  alert(arg1);
-}", reader.Value);
+            Assert.AreEqual("for (int i = 0; i < 1000; i++)\r\n{\r\n  alert(arg1);\r\n}", reader.Value);
 
             Assert.IsTrue(reader.Read());
             Assert.AreEqual(JsonToken.PropertyName, reader.TokenType);
@@ -1299,12 +1359,7 @@ namespace BESSy.Json.Tests.Bson
 
             Assert.IsTrue(reader.Read());
             Assert.AreEqual(JsonToken.String, reader.TokenType);
-            Assert.AreEqual(@"<p>I'm the Director for Research and Development for <a href=""http://www.prophoenix.com"" rel=""nofollow"">ProPhoenix</a>, a public safety software company.  This position allows me to investigate new and existing technologies and incorporate them into our product line, with the end goal being to help public safety agencies to do their jobs more effeciently and safely.</p>
-
-<p>I'm an advocate for PowerShell, as I believe it encourages administrative best practices and allows developers to provide additional access to their applications, without needing to explicity write code for each administrative feature.  Part of my advocacy for PowerShell includes <a href=""http://blog.usepowershell.com"" rel=""nofollow"">my blog</a>, appearances on various podcasts, and acting as a Community Director for <a href=""http://powershellcommunity.org"" rel=""nofollow"">PowerShellCommunity.Org</a></p>
-
-<p>I’m also a co-host of Mind of Root (a weekly audio podcast about systems administration, tech news, and topics).</p>
-", reader.Value);
+            Assert.AreEqual("<p>I'm the Director for Research and Development for <a href=\"http://www.prophoenix.com\" rel=\"nofollow\">ProPhoenix</a>, a public safety software company.  This position allows me to investigate new and existing technologies and incorporate them into our product line, with the end goal being to help public safety agencies to do their jobs more effeciently and safely.</p>\r\n\r\n<p>I'm an advocate for PowerShell, as I believe it encourages administrative best practices and allows developers to provide additional access to their applications, without needing to explicity write code for each administrative feature.  Part of my advocacy for PowerShell includes <a href=\"http://blog.usepowershell.com\" rel=\"nofollow\">my blog</a>, appearances on various podcasts, and acting as a Community Director for <a href=\"http://powershellcommunity.org\" rel=\"nofollow\">PowerShellCommunity.Org</a></p>\r\n\r\n<p>I’m also a co-host of Mind of Root (a weekly audio podcast about systems administration, tech news, and topics).</p>\r\n", reader.Value);
             Assert.AreEqual(typeof(string), reader.ValueType);
 
             Assert.IsTrue(reader.Read());
@@ -1432,7 +1487,7 @@ namespace BESSy.Json.Tests.Bson
             }
         }
 
-#if !(NET20 || NET35 || NETFX_CORE)
+#if !(NETFX_CORE)
         public void Utf8Text()
         {
             string badText = System.IO.File.ReadAllText(@"PoisonText.txt");
@@ -1451,7 +1506,7 @@ namespace BESSy.Json.Tests.Bson
         }
 #endif
 
-#if !(NET20 || NET35 || PORTABLE || PORTABLE40)
+#if !(NET20 || NET35 || PORTABLE || ASPNETCORE50 || PORTABLE40)
         public class BigIntegerTestClass
         {
             public BigInteger Blah { get; set; }
@@ -1602,6 +1657,135 @@ namespace BESSy.Json.Tests.Bson
             Assert.IsTrue(binder.BindToNameCalled);
 #endif
             Assert.IsTrue(binder.BindToTypeCalled);
+        }
+
+        [Test]
+        public void GuidsShouldBeProperlyDeserialised()
+        {
+            Guid g = new Guid("822C0CE6-CC42-4753-A3C3-26F0684A4B88");
+
+            MemoryStream ms = new MemoryStream();
+            BsonWriter writer = new BsonWriter(ms);
+            writer.WriteStartObject();
+            writer.WritePropertyName("TheGuid");
+            writer.WriteValue(g);
+            writer.WriteEndObject();
+            writer.Flush();
+
+            byte[] bytes = ms.ToArray();
+
+            BsonReader reader = new BsonReader(new MemoryStream(bytes));
+            Assert.IsTrue(reader.Read());
+            Assert.IsTrue(reader.Read());
+            
+            Assert.IsTrue(reader.Read());
+            Assert.AreEqual(JsonToken.Bytes, reader.TokenType);
+            Assert.AreEqual(typeof(Guid), reader.ValueType);
+            Assert.AreEqual(g, (Guid)reader.Value);
+
+            Assert.IsTrue(reader.Read());
+            Assert.IsFalse(reader.Read());
+
+            JsonSerializer serializer = new JsonSerializer();
+            serializer.MetadataPropertyHandling = MetadataPropertyHandling.Default;
+            ObjectTestClass b = serializer.Deserialize<ObjectTestClass>(new BsonReader(new MemoryStream(bytes)));
+            Assert.AreEqual(typeof(Guid), b.TheGuid.GetType());
+            Assert.AreEqual(g, (Guid)b.TheGuid);
+        }
+
+        [Test]
+        public void GuidsShouldBeProperlyDeserialised_AsBytes()
+        {
+            Guid g = new Guid("822C0CE6-CC42-4753-A3C3-26F0684A4B88");
+
+            MemoryStream ms = new MemoryStream();
+            BsonWriter writer = new BsonWriter(ms);
+            writer.WriteStartObject();
+            writer.WritePropertyName("TheGuid");
+            writer.WriteValue(g);
+            writer.WriteEndObject();
+            writer.Flush();
+
+            byte[] bytes = ms.ToArray();
+
+            BsonReader reader = new BsonReader(new MemoryStream(bytes));
+            Assert.IsTrue(reader.Read());
+            Assert.IsTrue(reader.Read());
+
+            CollectionAssert.AreEquivalent(g.ToByteArray(), reader.ReadAsBytes());
+            Assert.AreEqual(JsonToken.Bytes, reader.TokenType);
+            Assert.AreEqual(typeof(byte[]), reader.ValueType);
+            CollectionAssert.AreEquivalent(g.ToByteArray(), (byte[])reader.Value);
+
+            Assert.IsTrue(reader.Read());
+            Assert.IsFalse(reader.Read());
+
+            JsonSerializer serializer = new JsonSerializer();
+            BytesTestClass b = serializer.Deserialize<BytesTestClass>(new BsonReader(new MemoryStream(bytes)));
+            CollectionAssert.AreEquivalent(g.ToByteArray(), b.TheGuid);
+        }
+
+        [Test]
+        public void GuidsShouldBeProperlyDeserialised_AsBytes_ReadAhead()
+        {
+            Guid g = new Guid("822C0CE6-CC42-4753-A3C3-26F0684A4B88");
+
+            MemoryStream ms = new MemoryStream();
+            BsonWriter writer = new BsonWriter(ms);
+            writer.WriteStartObject();
+            writer.WritePropertyName("TheGuid");
+            writer.WriteValue(g);
+            writer.WriteEndObject();
+            writer.Flush();
+
+            byte[] bytes = ms.ToArray();
+
+            BsonReader reader = new BsonReader(new MemoryStream(bytes));
+            Assert.IsTrue(reader.Read());
+            Assert.IsTrue(reader.Read());
+
+            CollectionAssert.AreEquivalent(g.ToByteArray(), reader.ReadAsBytes());
+            Assert.AreEqual(JsonToken.Bytes, reader.TokenType);
+            Assert.AreEqual(typeof(byte[]), reader.ValueType);
+            CollectionAssert.AreEquivalent(g.ToByteArray(), (byte[])reader.Value);
+
+            Assert.IsTrue(reader.Read());
+            Assert.IsFalse(reader.Read());
+
+            JsonSerializer serializer = new JsonSerializer();
+            serializer.MetadataPropertyHandling = MetadataPropertyHandling.ReadAhead;
+            BytesTestClass b = serializer.Deserialize<BytesTestClass>(new BsonReader(new MemoryStream(bytes)));
+            CollectionAssert.AreEquivalent(g.ToByteArray(), b.TheGuid);
+        }
+
+        [Test]
+        public void DeserializeBsonDocumentWithString()
+        {
+            byte[] data = HexToBytes("10-00-00-00-02-62-00-04-00-00-00-61-62-63-00-00");
+            JsonSerializer serializer = new JsonSerializer();
+            JObject jObj = (JObject)serializer.Deserialize(new BsonReader(new MemoryStream(data)));
+            string stringValue = jObj.Value<string>("b");
+            Assert.AreEqual("abc", stringValue);
+        }
+
+        [Test]
+        public void DeserializeBsonDocumentWithGuid()
+        {
+            byte[] data = HexToBytes("1D-00-00-00-05-62-00-10-00-00-00-04-DF-41-E3-E2-39-EE-BB-4C-86-C0-06-A7-64-33-61-E1-00");
+            JsonSerializer serializer = new JsonSerializer();
+            JObject jObj = (JObject)serializer.Deserialize(new BsonReader(new MemoryStream(data)));
+            Guid guidValue = jObj.Value<Guid>("b");
+            Assert.AreEqual(new Guid("e2e341df-ee39-4cbb-86c0-06a7643361e1"), guidValue);
+        }
+
+        public class BytesTestClass
+        {
+            public byte[] TheGuid { get; set; }
+        }
+
+        public class ObjectTestClass
+        {
+            public object TheGuid { get; set; }
         }
     }
 }

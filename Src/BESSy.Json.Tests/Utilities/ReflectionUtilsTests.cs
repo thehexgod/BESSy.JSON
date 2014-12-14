@@ -23,16 +23,20 @@
 // OTHER DEALINGS IN THE SOFTWARE.
 #endregion
 
-#if !(PORTABLE || PORTABLE40)
-using global::System;
-using global::System.Collections.Generic;
-using global::System.Runtime.Serialization.Formatters;
-#if !NETFX_CORE
-using global::NUnit.Framework;
+#if !(PORTABLE || ASPNETCORE50 || PORTABLE40)
+using System;
+using System.Collections.Generic;
+using System.Runtime.Serialization.Formatters;
+#if NETFX_CORE
+using Microsoft.VisualStudio.TestPlatform.UnitTestFramework;
+using TestFixture = Microsoft.VisualStudio.TestPlatform.UnitTestFramework.TestClassAttribute;
+using Test = Microsoft.VisualStudio.TestPlatform.UnitTestFramework.TestMethodAttribute;
+#elif ASPNETCORE50
+using Xunit;
+using Test = Xunit.FactAttribute;
+using Assert = Newtonsoft.Json.Tests.XUnitAssert;
 #else
-using global::Microsoft.VisualStudio.TestPlatform.UnitTestFramework;
-using TestFixture = global::Microsoft.VisualStudio.TestPlatform.UnitTestFramework.TestClassAttribute;
-using Test = global::Microsoft.VisualStudio.TestPlatform.UnitTestFramework.TestMethodAttribute;
+using NUnit.Framework;
 #endif
 using global::BESSy.Json.Utilities;
 

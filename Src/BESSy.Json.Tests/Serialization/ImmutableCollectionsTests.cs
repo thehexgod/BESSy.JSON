@@ -30,12 +30,16 @@ using System.Collections.Immutable;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-#if !NETFX_CORE
-using NUnit.Framework;
-#else
+#if NETFX_CORE
 using Microsoft.VisualStudio.TestPlatform.UnitTestFramework;
 using TestFixture = Microsoft.VisualStudio.TestPlatform.UnitTestFramework.TestClassAttribute;
 using Test = Microsoft.VisualStudio.TestPlatform.UnitTestFramework.TestMethodAttribute;
+#elif ASPNETCORE50
+using Xunit;
+using Test = Xunit.FactAttribute;
+using Assert = Newtonsoft.Json.Tests.XUnitAssert;
+#else
+using NUnit.Framework;
 #endif
 using BESSy.Json.Linq;
 
@@ -56,11 +60,14 @@ namespace BESSy.Json.Tests.Serialization
             });
 
             string json = JsonConvert.SerializeObject(l, Formatting.Indented);
-            Assert.AreEqual(@"[
+            StringAssert.AreEqual(@"[
   ""One"",
   ""II"",
   ""3""
 ]", json);
+
+            Console.WriteLine("Serialized immutable list:");
+            Console.WriteLine(json);
         }
 
         [Test]
@@ -99,45 +106,60 @@ namespace BESSy.Json.Tests.Serialization
             Assert.AreEqual("Volibear", champions[0]);
             Assert.AreEqual("Teemo", champions[1]);
             Assert.AreEqual("Katarina", champions[2]);
+
+            Console.WriteLine("Deserialized immutable list:");
+            Console.WriteLine(string.Join(", ", champions));
+
         }
         #endregion
 
-        //    #region Array
-        //    [Test]
-        //    public void SerializeArray()
-        //    {
-        //      ImmutableArray<string> l = ImmutableArray.From(new List<string>
-        //        {
-        //          "One",
-        //          "II",
-        //          "3"
-        //        });
+        #region Array
+        [Test]
+        public void SerializeArray()
+        {
+            ImmutableArray<string> l = ImmutableArray.CreateRange(new List<string>
+                {
+                  "One",
+                  "II",
+                  "3"
+                });
 
-        //      string json = JsonConvert.SerializeObject(l, Formatting.Indented);
-        //      Assert.AreEqual(@"[
-        //  ""One"",
-        //  ""II"",
-        //  ""3""
-        //]", json);
-        //    }
+            string json = JsonConvert.SerializeObject(l, Formatting.Indented);
+            StringAssert.AreEqual(@"[
+  ""One"",
+  ""II"",
+  ""3""
+]", json);
+        }
 
-        //    [Test]
-        //    public void DeserializeArray()
-        //    {
-        //      string json = @"[
-        //  ""One"",
-        //  ""II"",
-        //  ""3""
-        //]";
+        [Test]
+        public void DeserializeArray()
+        {
+            string json = @"[
+          ""One"",
+          ""II"",
+          ""3""
+        ]";
 
-        //      ImmutableArray<string> l = JsonConvert.DeserializeObject<ImmutableArray<string>>(json);
+            ImmutableArray<string> l = JsonConvert.DeserializeObject<ImmutableArray<string>>(json);
 
-        //      Assert.AreEqual(3, l.Length);
-        //      Assert.AreEqual("One", l[0]);
-        //      Assert.AreEqual("II", l[1]);
-        //      Assert.AreEqual("3", l[2]);
-        //    }
-        //    #endregion
+            Assert.AreEqual(3, l.Length);
+            Assert.AreEqual("One", l[0]);
+            Assert.AreEqual("II", l[1]);
+            Assert.AreEqual("3", l[2]);
+        }
+
+        [Test]
+        public void SerializeDefaultArray()
+        {
+            ExceptionAssert.Throws<NullReferenceException>(
+                () => JsonConvert.SerializeObject(default(ImmutableArray<int>), Formatting.Indented),
+                new [] {
+                    "Object reference not set to an instance of an object.",
+                    "Object reference not set to an instance of an object" // mono
+                });
+        }
+        #endregion
 
         #region Queue
         [Test]
@@ -151,7 +173,7 @@ namespace BESSy.Json.Tests.Serialization
             });
 
             string json = JsonConvert.SerializeObject(l, Formatting.Indented);
-            Assert.AreEqual(@"[
+            StringAssert.AreEqual(@"[
   ""One"",
   ""II"",
   ""3""
@@ -205,7 +227,7 @@ namespace BESSy.Json.Tests.Serialization
             });
 
             string json = JsonConvert.SerializeObject(l, Formatting.Indented);
-            Assert.AreEqual(@"[
+            StringAssert.AreEqual(@"[
   ""3"",
   ""II"",
   ""One""
@@ -314,7 +336,7 @@ namespace BESSy.Json.Tests.Serialization
             });
 
             string json = JsonConvert.SerializeObject(l, Formatting.Indented);
-            Assert.AreEqual(@"[
+            StringAssert.AreEqual(@"[
   ""3"",
   ""II"",
   ""One""
@@ -405,7 +427,7 @@ namespace BESSy.Json.Tests.Serialization
             });
 
             string json = JsonConvert.SerializeObject(l, Formatting.Indented);
-            Assert.AreEqual(@"{
+            StringAssert.AreEqual(@"{
   ""1"": ""One"",
   ""2"": ""II"",
   ""3"": ""3""

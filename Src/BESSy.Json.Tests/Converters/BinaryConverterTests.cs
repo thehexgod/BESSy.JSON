@@ -25,21 +25,24 @@
 
 using System;
 using System.Collections.Generic;
-#if !NET20 && !NETFX_CORE
+#if !(NET20 || NETFX_CORE || ASPNETCORE50)
 using System.Data.Linq;
 #endif
-#if !(NETFX_CORE)
+#if !(NETFX_CORE || ASPNETCORE50)
 using System.Data.SqlTypes;
 #endif
 using System.Text;
 using BESSy.Json.Converters;
-#if !NETFX_CORE
-using NUnit.Framework;
-
-#else
+#if NETFX_CORE
 using Microsoft.VisualStudio.TestPlatform.UnitTestFramework;
 using TestFixture = Microsoft.VisualStudio.TestPlatform.UnitTestFramework.TestClassAttribute;
 using Test = Microsoft.VisualStudio.TestPlatform.UnitTestFramework.TestMethodAttribute;
+#elif ASPNETCORE50
+using Xunit;
+using Test = Xunit.FactAttribute;
+using Assert = Newtonsoft.Json.Tests.XUnitAssert;
+#else
+using NUnit.Framework;
 #endif
 
 namespace BESSy.Json.Tests.Converters
@@ -55,7 +58,7 @@ namespace BESSy.Json.Tests.Converters
             public byte[] NullByteArray { get; set; }
         }
 
-#if !(NET20 || NETFX_CORE || PORTABLE || PORTABLE40)
+#if !(NET20 || NETFX_CORE || PORTABLE || PORTABLE40 || ASPNETCORE50)
         [Test]
         public void DeserializeBinaryClass()
         {
@@ -99,7 +102,7 @@ namespace BESSy.Json.Tests.Converters
 
             string json = JsonConvert.SerializeObject(binaryClass, Formatting.Indented, new BinaryConverter());
 
-            Assert.AreEqual(@"{
+            StringAssert.AreEqual(@"{
   ""Binary"": ""VGhpcyBpcyBzb21lIHRlc3QgZGF0YSEhIQ=="",
   ""NullBinary"": null
 }", json);
@@ -115,13 +118,13 @@ namespace BESSy.Json.Tests.Converters
 
             string json = JsonConvert.SerializeObject(byteArrayClass, Formatting.Indented);
 
-            Assert.AreEqual(@"{
+            StringAssert.AreEqual(@"{
   ""ByteArray"": ""VGhpcyBpcyBzb21lIHRlc3QgZGF0YSEhIQ=="",
   ""NullByteArray"": null
 }", json);
         }
 
-#if !(NETFX_CORE || PORTABLE || PORTABLE40)
+#if !(NETFX_CORE || PORTABLE || PORTABLE40 || ASPNETCORE50)
         public class SqlBinaryClass
         {
             public SqlBinary SqlBinary { get; set; }
@@ -139,7 +142,7 @@ namespace BESSy.Json.Tests.Converters
 
             string json = JsonConvert.SerializeObject(sqlBinaryClass, Formatting.Indented, new BinaryConverter());
 
-            Assert.AreEqual(@"{
+            StringAssert.AreEqual(@"{
   ""SqlBinary"": ""VGhpcyBpcyBzb21lIHRlc3QgZGF0YSEhIQ=="",
   ""NullableSqlBinary1"": ""VGhpcyBpcyBzb21lIHRlc3QgZGF0YSEhIQ=="",
   ""NullableSqlBinary2"": null

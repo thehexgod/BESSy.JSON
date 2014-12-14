@@ -98,7 +98,7 @@ namespace BESSy.Json.Schema
             {
                 string reference = schema.DeferredReference;
 
-                bool locationReference = (reference.StartsWith("#", StringComparison.OrdinalIgnoreCase));
+                bool locationReference = (reference.StartsWith("#", StringComparison.Ordinal));
                 if (locationReference)
                     reference = UnescapeReference(reference);
 

@@ -25,24 +25,22 @@
 
 using System;
 using System.Collections.Generic;
-#if !NET20 && !NETFX_CORE
-using System.Data.Linq;
-#endif
-#if !NETFX_CORE
-using System.Data.SqlTypes;
-#endif
 using System.IO;
 using System.Text.RegularExpressions;
 using BESSy.Json.Bson;
 using BESSy.Json.Converters;
 using BESSy.Json.Serialization;
 using BESSy.Json.Utilities;
-#if !NETFX_CORE
-using NUnit.Framework;
-#else
+#if NETFX_CORE
 using Microsoft.VisualStudio.TestPlatform.UnitTestFramework;
 using TestFixture = Microsoft.VisualStudio.TestPlatform.UnitTestFramework.TestClassAttribute;
 using Test = Microsoft.VisualStudio.TestPlatform.UnitTestFramework.TestMethodAttribute;
+#elif ASPNETCORE50
+using Xunit;
+using Test = Xunit.FactAttribute;
+using Assert = Newtonsoft.Json.Tests.XUnitAssert;
+#else
+using NUnit.Framework;
 #endif
 using BESSy.Json.Tests.TestObjects;
 
@@ -63,7 +61,7 @@ namespace BESSy.Json.Tests.Converters
 
             string json = JsonConvert.SerializeObject(regex, Formatting.Indented, new RegexConverter());
 
-            Assert.AreEqual(@"{
+            StringAssert.AreEqual(@"{
   ""Pattern"": ""abc"",
   ""Options"": 513
 }", json);
@@ -80,7 +78,7 @@ namespace BESSy.Json.Tests.Converters
                 ContractResolver = new CamelCasePropertyNamesContractResolver()
             });
 
-            Assert.AreEqual(@"{
+            StringAssert.AreEqual(@"{
   ""pattern"": ""abc"",
   ""options"": ""ignoreCase""
 }", json);
@@ -223,7 +221,7 @@ namespace BESSy.Json.Tests.Converters
 
             string json = JsonConvert.SerializeObject(new RegexTestClass { Regex = regex }, Formatting.Indented, new RegexConverter());
 
-            Assert.AreEqual(@"{
+            StringAssert.AreEqual(@"{
   ""Regex"": {
     ""Pattern"": """",
     ""Options"": 0

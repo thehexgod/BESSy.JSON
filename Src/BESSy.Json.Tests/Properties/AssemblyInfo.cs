@@ -31,7 +31,9 @@ using System.Security;
 // set of attributes. Change these attribute values to modify the information
 // associated with an assembly.
 
-#if PORTABLE
+#if PORTABLE40
+[assembly: AssemblyTitle("Json.NET Tests Portable .NET 4.0")]
+#elif PORTABLE
 [assembly: AssemblyTitle("Json.NET Tests Portable")]
 #elif NETFX_CORE
 [assembly: AssemblyTitle("Json.NET Tests WinRT")]
@@ -42,7 +44,6 @@ using System.Security;
 #elif NET40
 [assembly: AssemblyTitle("Json.NET Tests .NET 4.0")]
 #else
-
 [assembly: AssemblyTitle("Json.NET Tests")]
 #endif
 
@@ -75,4 +76,4 @@ using System.Security;
 // by using the '*' as shown below:
 
 [assembly: AssemblyVersion("6.0.0.0")]
-[assembly: AssemblyFileVersion("6.0.2.17209")]
+[assembly: AssemblyFileVersion("6.0.6.17929")]

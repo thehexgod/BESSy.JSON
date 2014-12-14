@@ -26,12 +26,16 @@
 using System;
 using System.Collections.Generic;
 using BESSy.Json.Serialization;
-#if !NETFX_CORE
-using NUnit.Framework;
-#else
+#if NETFX_CORE
 using Microsoft.VisualStudio.TestPlatform.UnitTestFramework;
 using TestFixture = Microsoft.VisualStudio.TestPlatform.UnitTestFramework.TestClassAttribute;
 using Test = Microsoft.VisualStudio.TestPlatform.UnitTestFramework.TestMethodAttribute;
+#elif ASPNETCORE50
+using Xunit;
+using Test = Xunit.FactAttribute;
+using Assert = Newtonsoft.Json.Tests.XUnitAssert;
+#else
+using NUnit.Framework;
 #endif
 using BESSy.Json.Tests.TestObjects;
 using BESSy.Json.Linq;
@@ -56,7 +60,7 @@ namespace BESSy.Json.Tests.Serialization
                 ContractResolver = new CamelCasePropertyNamesContractResolver()
             });
 
-            Assert.AreEqual(@"{
+            StringAssert.AreEqual(@"{
   ""name"": ""Name!"",
   ""birthDate"": ""2000-11-20T23:55:44Z"",
   ""lastModified"": ""2000-11-20T23:55:44Z""
@@ -72,7 +76,7 @@ namespace BESSy.Json.Tests.Serialization
             Assert.AreEqual(person.Name, deserializedPerson.Name);
 
             json = JsonConvert.SerializeObject(person, Formatting.Indented);
-            Assert.AreEqual(@"{
+            StringAssert.AreEqual(@"{
   ""Name"": ""Name!"",
   ""BirthDate"": ""2000-11-20T23:55:44Z"",
   ""LastModified"": ""2000-11-20T23:55:44Z""
@@ -101,7 +105,7 @@ namespace BESSy.Json.Tests.Serialization
             string json = o.ToString();
         }
 
-#if !(NETFX_CORE || PORTABLE || PORTABLE40)
+#if !(NETFX_CORE || PORTABLE || ASPNETCORE50 || PORTABLE40)
 #pragma warning disable 618
         [Test]
         public void MemberSearchFlags()
@@ -113,7 +117,7 @@ namespace BESSy.Json.Tests.Serialization
                 ContractResolver = new CamelCasePropertyNamesContractResolver { DefaultMembersSearchFlags = BindingFlags.NonPublic | BindingFlags.Instance }
             });
 
-            Assert.AreEqual(@"{
+            StringAssert.AreEqual(@"{
   ""_privateString"": ""PrivateString!"",
   ""i"": 0,
   ""_internalString"": ""InternalString!""
@@ -166,7 +170,7 @@ namespace BESSy.Json.Tests.Serialization
             //  ]
             //}
 
-            Assert.AreEqual(@"{
+            StringAssert.AreEqual(@"{
   ""name"": ""Widget"",
   ""expiryDate"": ""2010-12-20T18:01:00Z"",
   ""price"": 9.99,
@@ -192,7 +196,7 @@ namespace BESSy.Json.Tests.Serialization
                     ContractResolver = new CamelCasePropertyNamesContractResolver()
                 });
 
-            Assert.AreEqual(@"{
+            StringAssert.AreEqual(@"{
   ""explicit"": false,
   ""text"": ""Text!"",
   ""integer"": 2147483647,
@@ -217,7 +221,7 @@ namespace BESSy.Json.Tests.Serialization
                     ContractResolver = new CamelCasePropertyNamesContractResolver()
                 });
 
-            Assert.AreEqual(@"{
+            StringAssert.AreEqual(@"{
   ""first"": ""Value1!"",
   ""second"": ""Value2!""
 }", json);

@@ -23,7 +23,7 @@
 // OTHER DEALINGS IN THE SOFTWARE.
 #endregion
 
-#if !(NET35 || NET20 || PORTABLE)
+#if !(NET35 || NET20 || PORTABLE || ASPNETCORE50)
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -37,12 +37,16 @@ using System.Text;
 using System.Threading.Tasks;
 using BESSy.Json.Converters;
 using BESSy.Json.Linq;
-#if !NETFX_CORE
-using NUnit.Framework;
-#else
+#if NETFX_CORE
 using Microsoft.VisualStudio.TestPlatform.UnitTestFramework;
 using TestFixture = Microsoft.VisualStudio.TestPlatform.UnitTestFramework.TestClassAttribute;
 using Test = Microsoft.VisualStudio.TestPlatform.UnitTestFramework.TestMethodAttribute;
+#elif ASPNETCORE50
+using Xunit;
+using Test = Xunit.FactAttribute;
+using Assert = Newtonsoft.Json.Tests.XUnitAssert;
+#else
+using NUnit.Framework;
 #endif
 using BESSy.Json.Serialization;
 using BESSy.Json.Tests.TestObjects;
@@ -127,7 +131,7 @@ namespace BESSy.Json.Tests.Documentation
             // ]
             #endregion
 
-            Assert.AreEqual(@"[
+            StringAssert.AreEqual(@"[
   {
     ""Name"": ""Joe Employee"",
     ""Manager"": {
@@ -159,7 +163,7 @@ namespace BESSy.Json.Tests.Documentation
                     ContractResolver = ShouldSerializeContractResolver.Instance
                 });
 
-            Assert.AreEqual(@"[
+            StringAssert.AreEqual(@"[
   {
     ""Name"": ""Joe Employee"",
     ""Manager"": {
