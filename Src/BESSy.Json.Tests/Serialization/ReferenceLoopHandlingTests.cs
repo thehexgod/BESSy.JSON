@@ -32,7 +32,7 @@ using Test = Microsoft.VisualStudio.TestPlatform.UnitTestFramework.TestMethodAtt
 #elif ASPNETCORE50
 using Xunit;
 using Test = Xunit.FactAttribute;
-using Assert = Newtonsoft.Json.Tests.XUnitAssert;
+using Assert = BESSy.Json.Tests.XUnitAssert;
 #else
 using NUnit.Framework;
 #endif
@@ -190,8 +190,7 @@ namespace BESSy.Json.Tests.Serialization
             var settings =
                 new JsonSerializerSettings();
 
-            ExceptionAssert.Throws<JsonSerializationException>(() => JsonConvert.SerializeObject(main, settings), "Self referencing loop detected with type 'Newtonsoft.Json.Tests.Serialization.ReferenceLoopHandlingTests+MainClass'. Path 'Child'.");
-                "Self referencing loop detected with type 'BESSy.Json.Tests.Serialization.ReferenceLoopHandlingTests+MainClass'. Path 'Child'.",
+            ExceptionAssert.Throws<JsonSerializationException>(() => JsonConvert.SerializeObject(main, settings), "Self referencing loop detected with type 'BESSy.Json.Tests.Serialization.ReferenceLoopHandlingTests+MainClass'. Path 'Child'.");
         }
 
         [Test]
@@ -250,8 +249,7 @@ namespace BESSy.Json.Tests.Serialization
 
             var settings = new JsonSerializerSettings();
 
-            ExceptionAssert.Throws<JsonSerializationException>(() => JsonConvert.SerializeObject(parent, settings), "Self referencing loop detected with type 'Newtonsoft.Json.Tests.Serialization.ReferenceLoopHandlingTests+DictionaryDynamicObject'. Path 'child'.");
-                "Self referencing loop detected with type 'BESSy.Json.Tests.Serialization.ReferenceLoopHandlingTests+DictionaryDynamicObject'. Path 'child'.",
+            ExceptionAssert.Throws<JsonSerializationException>(() => JsonConvert.SerializeObject(parent, settings), "Self referencing loop detected with type 'BESSy.Json.Tests.Serialization.ReferenceLoopHandlingTests+DictionaryDynamicObject'. Path 'child'.");
         }
 
         [Test]

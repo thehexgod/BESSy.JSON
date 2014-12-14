@@ -47,7 +47,7 @@ using Test = Microsoft.VisualStudio.TestPlatform.UnitTestFramework.TestMethodAtt
 #elif ASPNETCORE50
 using Xunit;
 using Test = Xunit.FactAttribute;
-using Assert = Newtonsoft.Json.Tests.XUnitAssert;
+using Assert = BESSy.Json.Tests.XUnitAssert;
 #else
 using NUnit.Framework;
 #endif
@@ -169,8 +169,7 @@ namespace BESSy.Json.Tests.Serialization
   ""3""
 ]";
 
-            ExceptionAssert.Throws<JsonSerializationException>(() => JsonConvert.DeserializeObject<EnumerableClassFailure<string>>(json), "Cannot create and populate list type Newtonsoft.Json.Tests.Serialization.JsonSerializerCollectionsTests+EnumerableClassFailure`1[System.String]. Path '', line 1, position 1.");
-                "Cannot create and populate list type BESSy.Json.Tests.Serialization.JsonSerializerCollectionsTests+EnumerableClassFailure`1[System.String]. Path '', line 1, position 1.",
+            ExceptionAssert.Throws<JsonSerializationException>(() => JsonConvert.DeserializeObject<EnumerableClassFailure<string>>(json), "Cannot create and populate list type BESSy.Json.Tests.Serialization.JsonSerializerCollectionsTests+EnumerableClassFailure`1[System.String]. Path '', line 1, position 1.");
         }
 
         public class PrivateDefaultCtorList<T> : List<T>
@@ -183,8 +182,7 @@ namespace BESSy.Json.Tests.Serialization
         [Test]
         public void DeserializePrivateListCtor()
         {
-            ExceptionAssert.Throws<JsonSerializationException>(() => JsonConvert.DeserializeObject<PrivateDefaultCtorList<int>>("[1,2]"), "Unable to find a constructor to use for type Newtonsoft.Json.Tests.Serialization.JsonSerializerCollectionsTests+PrivateDefaultCtorList`1[System.Int32]. Path '', line 1, position 1.");
-                "Unable to find a constructor to use for type BESSy.Json.Tests.Serialization.JsonSerializerCollectionsTests+PrivateDefaultCtorList`1[System.Int32]. Path '', line 1, position 1.",
+            ExceptionAssert.Throws<JsonSerializationException>(() => JsonConvert.DeserializeObject<PrivateDefaultCtorList<int>>("[1,2]"), "Unable to find a constructor to use for type BESSy.Json.Tests.Serialization.JsonSerializerCollectionsTests+PrivateDefaultCtorList`1[System.Int32]. Path '', line 1, position 1.");
 
             var list = JsonConvert.DeserializeObject<PrivateDefaultCtorList<int>>("[1,2]", new JsonSerializerSettings
             {

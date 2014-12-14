@@ -24,7 +24,7 @@
 #endregion
 
 #if !(NET35 || NET20 || NETFX_CORE)
-using Newtonsoft.Json.Linq;
+using BESSy.Json.Linq;
 using System;
 using System.Collections;
 using System.Collections.Generic;

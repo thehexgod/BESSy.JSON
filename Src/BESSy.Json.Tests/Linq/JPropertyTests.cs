@@ -27,12 +27,12 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.ComponentModel;
-using BESSy.Json.Linq;
-using Newtonsoft.Json.Utilities.LinqBridge;
+#if NET20
+using BESSy.Json.Utilities.LinqBridge;
 #else
 using System.Linq;
 #endif
-using Newtonsoft.Json.Linq;
+using BESSy.Json.Linq;
 #if NETFX_CORE
 using Microsoft.VisualStudio.TestPlatform.UnitTestFramework;
 using TestFixture = Microsoft.VisualStudio.TestPlatform.UnitTestFramework.TestClassAttribute;
@@ -40,7 +40,7 @@ using Test = Microsoft.VisualStudio.TestPlatform.UnitTestFramework.TestMethodAtt
 #elif ASPNETCORE50
 using Xunit;
 using Test = Xunit.FactAttribute;
-using Assert = Newtonsoft.Json.Tests.XUnitAssert;
+using Assert = BESSy.Json.Tests.XUnitAssert;
 #else
 using NUnit.Framework;
 #endif
@@ -103,8 +103,7 @@ namespace BESSy.Json.Tests.Linq
             JProperty p = new JProperty("TestProperty", null);
             IList l = p;
 
-            ExceptionAssert.Throws<JsonException>(() => { l.Clear(); }, "Cannot add or remove items from Newtonsoft.Json.Linq.JProperty.");
-                "Cannot add or remove items from BESSy.Json.Linq.JProperty.",
+            ExceptionAssert.Throws<JsonException>(() => { l.Clear(); }, "Cannot add or remove items from BESSy.Json.Linq.JProperty.");
         }
 
         [Test]
@@ -113,8 +112,7 @@ namespace BESSy.Json.Tests.Linq
             JProperty p = new JProperty("TestProperty", null);
             IList l = p;
 
-            ExceptionAssert.Throws<JsonException>(() => { l.Add(null); }, "Newtonsoft.Json.Linq.JProperty cannot have multiple values.");
-                "BESSy.Json.Linq.JProperty cannot have multiple values.",
+            ExceptionAssert.Throws<JsonException>(() => { l.Add(null); }, "BESSy.Json.Linq.JProperty cannot have multiple values.");
         }
 
         [Test]
@@ -123,8 +121,8 @@ namespace BESSy.Json.Tests.Linq
             JProperty p = new JProperty("TestProperty", null);
             IList l = p;
 
-            ExceptionAssert.Throws<JsonException>(() => { l.Remove(p.Value); }, "Cannot add or remove items from Newtonsoft.Json.Linq.JProperty.");
-                "Cannot add or remove items from BESSy.Json.Linq.JProperty.",
+            ExceptionAssert.Throws<JsonException>(() => { l.Remove(p.Value); }, "Cannot add or remove items from BESSy.Json.Linq.JProperty.");
+        }
 
         [Test]
         public void IListRemoveAt()
@@ -132,7 +130,7 @@ namespace BESSy.Json.Tests.Linq
             JProperty p = new JProperty("TestProperty", null);
             IList l = p;
 
-            ExceptionAssert.Throws<JsonException>(() => { l.RemoveAt(0); }, "Cannot add or remove items from Newtonsoft.Json.Linq.JProperty.");
+            ExceptionAssert.Throws<JsonException>(() => { l.RemoveAt(0); }, "Cannot add or remove items from BESSy.Json.Linq.JProperty.");
         }
 
         [Test]
@@ -221,8 +219,7 @@ namespace BESSy.Json.Tests.Linq
         {
             IList<JToken> t = new JProperty("error", new List<string> { "one", "two" });
 
-            ExceptionAssert.Throws<JsonException>(() => { t.Add(1); }, "Newtonsoft.Json.Linq.JProperty cannot have multiple values.");
-                "BESSy.Json.Linq.JProperty cannot have multiple values.",
+            ExceptionAssert.Throws<JsonException>(() => { t.Add(1); }, "BESSy.Json.Linq.JProperty cannot have multiple values.");
         }
     }
 }

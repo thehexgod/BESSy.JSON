@@ -43,7 +43,7 @@ using TestMethod = Microsoft.VisualStudio.TestPlatform.UnitTestFramework.TestMet
 using SetUp = Microsoft.VisualStudio.TestPlatform.UnitTestFramework.TestInitializeAttribute;
 #elif ASPNETCORE50
 using Xunit;
-using Assert = Newtonsoft.Json.Tests.XUnitAssert;
+using Assert = BESSy.Json.Tests.XUnitAssert;
 using XAssert = Xunit.Assert;
 #else
 using NUnit.Framework;

@@ -43,7 +43,7 @@ using Test = Microsoft.VisualStudio.TestPlatform.UnitTestFramework.TestMethodAtt
 #elif ASPNETCORE50
 using Xunit;
 using Test = Xunit.FactAttribute;
-using Assert = Newtonsoft.Json.Tests.XUnitAssert;
+using Assert = BESSy.Json.Tests.XUnitAssert;
 #else
 using NUnit.Framework;
 #endif
@@ -84,7 +84,7 @@ namespace BESSy.Json.Tests.Documentation
     #region JsonConverterContractResolver
     public class ConverterContractResolver : DefaultContractResolver
     {
-        public new static readonly ConverterContractResolver Instance = new ConverterContractResolver();
+        public static readonly ConverterContractResolver Instance = new ConverterContractResolver();
 
         protected override JsonContract CreateContract(Type objectType)
         {

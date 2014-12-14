@@ -44,7 +44,7 @@ using Test = Microsoft.VisualStudio.TestPlatform.UnitTestFramework.TestMethodAtt
 #elif ASPNETCORE50
 using Xunit;
 using Test = Xunit.FactAttribute;
-using Assert = Newtonsoft.Json.Tests.XUnitAssert;
+using Assert = BESSy.Json.Tests.XUnitAssert;
 #else
 using NUnit.Framework;
 #endif
@@ -64,7 +64,7 @@ namespace BESSy.Json.Tests.Documentation
     #region ShouldSerializeContractResolver
     public class ShouldSerializeContractResolver : DefaultContractResolver
     {
-        public new static readonly ShouldSerializeContractResolver Instance = new ShouldSerializeContractResolver();
+        public static readonly ShouldSerializeContractResolver Instance = new ShouldSerializeContractResolver();
 
         protected override JsonProperty CreateProperty(MemberInfo member, MemberSerialization memberSerialization)
         {

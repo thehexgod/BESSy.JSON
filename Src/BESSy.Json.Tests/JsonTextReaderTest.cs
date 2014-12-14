@@ -26,7 +26,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
-using Newtonsoft.Json.Linq;
+using BESSy.Json.Linq;
 #if !(NET20 || NET35 || PORTABLE40 || PORTABLE || ASPNETCORE50)
 using System.Numerics;
 #endif
@@ -38,7 +38,7 @@ using Test = Microsoft.VisualStudio.TestPlatform.UnitTestFramework.TestMethodAtt
 #elif ASPNETCORE50
 using Xunit;
 using Test = Xunit.FactAttribute;
-using Assert = Newtonsoft.Json.Tests.XUnitAssert;
+using Assert = BESSy.Json.Tests.XUnitAssert;
 #else
 using NUnit.Framework;
 #endif

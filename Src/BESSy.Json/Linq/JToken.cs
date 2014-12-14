@@ -309,7 +309,7 @@ namespace BESSy.Json.Linq
         {
             JToken token = this[key];
 
-            // null check to fix MonoTouch issue - https://github.com/dolbz/Newtonsoft.Json/commit/a24e3062846b30ee505f3271ac08862bb471b822
+            // null check to fix MonoTouch issue - https://github.com/dolbz/BESSy.Json/commit/a24e3062846b30ee505f3271ac08862bb471b822
             return token == null ? default(T) : Extensions.Convert<JToken, T>(token);
         }
 

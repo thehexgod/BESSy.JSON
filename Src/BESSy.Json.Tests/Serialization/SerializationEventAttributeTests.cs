@@ -44,7 +44,7 @@ using Test = Microsoft.VisualStudio.TestPlatform.UnitTestFramework.TestMethodAtt
 #elif ASPNETCORE50
 using Xunit;
 using Test = Xunit.FactAttribute;
-using Assert = Newtonsoft.Json.Tests.XUnitAssert;
+using Assert = BESSy.Json.Tests.XUnitAssert;
 #else
 using NUnit.Framework;
 #endif
@@ -446,7 +446,7 @@ OnSerialized_Derived_Derived", string.Join(Environment.NewLine, e.ToArray()));
                 }
             };
 
-            ExceptionAssert.Throws<JsonException>(() => JsonConvert.SerializeObject(d, Formatting.Indented), "Serialization Callback 'Void Deserialized()' in type 'Newtonsoft.Json.Tests.Serialization.Contract' must have a single parameter of type 'System.Runtime.Serialization.StreamingContext'.");
+            ExceptionAssert.Throws<JsonException>(() => JsonConvert.SerializeObject(d, Formatting.Indented), "Serialization Callback 'Void Deserialized()' in type 'BESSy.Json.Tests.Serialization.Contract' must have a single parameter of type 'System.Runtime.Serialization.StreamingContext'.");
         }
     }
 

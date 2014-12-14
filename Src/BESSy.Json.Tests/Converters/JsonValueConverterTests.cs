@@ -26,7 +26,7 @@
 
 #if NETFX_CORE
 using System;
-using Newtonsoft.Json.Converters;
+using BESSy.Json.Converters;
 #if !NETFX_CORE
 using NUnit.Framework;
 #else
@@ -37,11 +37,11 @@ using Test = Microsoft.VisualStudio.TestPlatform.UnitTestFramework.TestMethodAtt
 using Windows.Data.Json;
 using System.IO;
 using System.Diagnostics;
-using Newtonsoft.Json.Linq;
+using BESSy.Json.Linq;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace Newtonsoft.Json.Tests.Converters
+namespace BESSy.Json.Tests.Converters
 {
     [TestFixture]
     public class JsonValueConverterTests : TestFixtureBase

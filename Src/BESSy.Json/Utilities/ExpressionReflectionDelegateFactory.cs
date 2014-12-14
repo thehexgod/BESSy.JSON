@@ -30,7 +30,7 @@ using System.Text;
 using System;
 using System.Linq.Expressions;
 using System.Reflection;
-using Newtonsoft.Json.Serialization;
+using BESSy.Json.Serialization;
 
 namespace BESSy.Json.Utilities
 {

@@ -30,13 +30,13 @@ namespace BESSy.Json.Tests.TestObjects
 {
     public class MetroPropertyNameResolver : DefaultContractResolver
     {
-        protected internal override string ResolvePropertyName(string propertyName)
-        {
-#if !(NETFX_CORE || ASPNETCORE50)
-            return ":::" + propertyName.ToUpper(CultureInfo.InvariantCulture) + ":::";
-#else
-            return ":::" + propertyName.ToUpper() + ":::";
-#endif
-        }
+//        protected internal override string ResolvePropertyName(string propertyName)
+//        {
+//#if !(NETFX_CORE || ASPNETCORE50)
+//            return ":::" + propertyName.ToUpper(CultureInfo.InvariantCulture) + ":::";
+//#else
+//            return ":::" + propertyName.ToUpper() + ":::";
+//#endif
+//        }
     }
 }

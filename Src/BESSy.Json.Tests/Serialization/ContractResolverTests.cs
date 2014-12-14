@@ -34,7 +34,7 @@ using Test = Microsoft.VisualStudio.TestPlatform.UnitTestFramework.TestMethodAtt
 #elif ASPNETCORE50
 using Xunit;
 using Test = Xunit.FactAttribute;
-using Assert = Newtonsoft.Json.Tests.XUnitAssert;
+using Assert = BESSy.Json.Tests.XUnitAssert;
 #else
 using NUnit.Framework;
 #endif
@@ -77,11 +77,6 @@ namespace BESSy.Json.Tests.Serialization
     {
         public string PropertyPrefix { get; set; }
         public string PropertySuffix { get; set; }
-
-        protected internal override string ResolvePropertyName(string propertyName)
-        {
-            return base.ResolvePropertyName(PropertyPrefix + propertyName + PropertySuffix);
-        }
     }
 
     public class Book
@@ -168,7 +163,7 @@ namespace BESSy.Json.Tests.Serialization
             ExceptionAssert.Throws<JsonSerializationException>(() => JsonConvert.DeserializeObject<AbstractTestClass>(@"{Value:'Value!'}", new JsonSerializerSettings
             {
                 ContractResolver = resolver
-            }), "Could not create an instance of type Newtonsoft.Json.Tests.Serialization.AbstractTestClass. Type is an interface or abstract class and cannot be instantiated. Path 'Value', line 1, position 7.");
+            }), "Could not create an instance of type BESSy.Json.Tests.Serialization.AbstractTestClass. Type is an interface or abstract class and cannot be instantiated. Path 'Value', line 1, position 7.");
 
             contract.DefaultCreator = () => new AbstractImplementationTestClass();
 
@@ -193,7 +188,7 @@ namespace BESSy.Json.Tests.Serialization
             ExceptionAssert.Throws<JsonSerializationException>(() => JsonConvert.DeserializeObject<AbstractListTestClass<int>>(@"[1,2]", new JsonSerializerSettings
             {
                 ContractResolver = resolver
-            }), "Could not create an instance of type Newtonsoft.Json.Tests.Serialization.AbstractListTestClass`1[System.Int32]. Type is an interface or abstract class and cannot be instantiated. Path '', line 1, position 1.");
+            }), "Could not create an instance of type BESSy.Json.Tests.Serialization.AbstractListTestClass`1[System.Int32]. Type is an interface or abstract class and cannot be instantiated. Path '', line 1, position 1.");
 
             contract.DefaultCreator = () => new AbstractImplementationListTestClass<int>();
 
@@ -273,7 +268,7 @@ namespace BESSy.Json.Tests.Serialization
             ExceptionAssert.Throws<JsonSerializationException>(() => JsonConvert.DeserializeObject<AbstractDictionaryTestClass<string, int>>(@"{key1:1,key2:2}", new JsonSerializerSettings
             {
                 ContractResolver = resolver
-            }), "Could not create an instance of type Newtonsoft.Json.Tests.Serialization.AbstractDictionaryTestClass`2[System.String,System.Int32]. Type is an interface or abstract class and cannot be instantiated. Path 'key1', line 1, position 6.");
+            }), "Could not create an instance of type BESSy.Json.Tests.Serialization.AbstractDictionaryTestClass`2[System.String,System.Int32]. Type is an interface or abstract class and cannot be instantiated. Path 'key1', line 1, position 6.");
 
             contract.DefaultCreator = () => new AbstractImplementationDictionaryTestClass<string, int>();
 

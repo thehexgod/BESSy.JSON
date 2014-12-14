@@ -17,7 +17,7 @@ using Test = Microsoft.VisualStudio.TestPlatform.UnitTestFramework.TestMethodAtt
 #elif ASPNETCORE50
 using Xunit;
 using Test = Xunit.FactAttribute;
-using Assert = Newtonsoft.Json.Tests.XUnitAssert;
+using Assert = BESSy.Json.Tests.XUnitAssert;
 #else
 using NUnit.Framework;
 #endif
@@ -294,7 +294,7 @@ BESSy.Json Error: 0 : Error!
             Assert.IsTrue(traceWriter.TraceRecords[7].Message.StartsWith("Finished deserializing System.Version. Path 'Version'"));
             Assert.AreEqual("Started deserializing System.Collections.Generic.IDictionary`2[System.String,System.String]. Path 'StringDictionary.1', line 19, position 9.", traceWriter.TraceRecords[8].Message);
             Assert.IsTrue(traceWriter.TraceRecords[9].Message.StartsWith("Finished deserializing System.Collections.Generic.IDictionary`2[System.String,System.String]. Path 'StringDictionary'"));
-            Assert.IsTrue(traceWriter.TraceRecords[10].Message.StartsWith("Finished deserializing Newtonsoft.Json.Tests.Serialization.TraceTestObject. Path ''"));
+            Assert.IsTrue(traceWriter.TraceRecords[10].Message.StartsWith("Finished deserializing BESSy.Json.Tests.Serialization.TraceTestObject. Path ''"));
 
             Assert.IsFalse(traceWriter.TraceRecords.Any(r => r.Level == TraceLevel.Verbose));
         }
@@ -345,7 +345,7 @@ BESSy.Json Error: 0 : Error!
             Assert.AreEqual(2, o2.Version.Minor);
             Assert.AreEqual(3, o2.StringDictionary.Count);
 
-            Assert.AreEqual("Started deserializing Newtonsoft.Json.Tests.Serialization.TraceTestObject. Path 'IntList', line 2, position 13.", traceWriter.TraceRecords[0].Message);
+            Assert.AreEqual("Started deserializing BESSy.Json.Tests.Serialization.TraceTestObject. Path 'IntList', line 2, position 13.", traceWriter.TraceRecords[0].Message);
             Assert.AreEqual("Started deserializing System.Collections.Generic.IList`1[System.Int32]. Path 'IntList', line 2, position 15.", traceWriter.TraceRecords[1].Message);
             Assert.IsTrue(traceWriter.TraceRecords[2].Message.StartsWith("Finished deserializing System.Collections.Generic.IList`1[System.Int32]. Path 'IntList'"));
             Assert.AreEqual("Started deserializing System.String[]. Path 'StringArray', line 6, position 19.", traceWriter.TraceRecords[3].Message);
@@ -699,7 +699,7 @@ BESSy.Json Error: 0 : Error!
             Assert.IsNotNull(c);
             Assert.AreEqual(1, c.Name);
 
-            Assert.AreEqual("Deserializing Newtonsoft.Json.Tests.TestObjects.PublicParametizedConstructorWithPropertyNameConflictWithAttribute using creator with parameters: name. Path 'name', line 1, position 6.", traceWriter.TraceRecords[0].Message);
+            Assert.AreEqual("Deserializing BESSy.Json.Tests.TestObjects.PublicParametizedConstructorWithPropertyNameConflictWithAttribute using creator with parameters: name. Path 'name', line 1, position 6.", traceWriter.TraceRecords[0].Message);
         }
 
         [Test]
