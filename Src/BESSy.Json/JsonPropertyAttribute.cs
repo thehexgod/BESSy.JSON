@@ -53,6 +53,8 @@ namespace BESSy.Json
         /// <value>The collection's items converter.</value>
         public Type ItemConverterType { get; set; }
 
+        public Type ContractType { get; set; }
+
         /// <summary>
         /// Gets or sets the null value handling used when serializing this property.
         /// </summary>

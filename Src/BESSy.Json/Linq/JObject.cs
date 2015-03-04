@@ -468,7 +468,12 @@ namespace BESSy.Json.Linq
             if (property == null)
                 return false;
 
+            OnPropertyChanging(propertyName);
+
             property.Remove();
+
+            OnPropertyChanged(propertyName);
+
             return true;
         }
 

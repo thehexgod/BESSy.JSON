@@ -1176,6 +1176,7 @@ namespace BESSy.Json.Serialization
             MemberInfo memberInfo = attributeProvider as MemberInfo;
 
             DataMemberAttribute dataMemberAttribute;
+
             if (dataContractAttribute != null && memberInfo != null)
                 dataMemberAttribute = JsonTypeReflector.GetDataMemberAttribute((MemberInfo)memberInfo);
             else
@@ -1205,6 +1206,10 @@ namespace BESSy.Json.Serialization
                 property._required = propertyAttribute._required;
                 property.Order = propertyAttribute._order;
                 property.DefaultValueHandling = propertyAttribute._defaultValueHandling;
+
+                if (propertyAttribute.ContractType != null)
+                    property.PropertyType = propertyAttribute.ContractType;
+
                 hasMemberAttribute = true;
             }
 #if !NET20

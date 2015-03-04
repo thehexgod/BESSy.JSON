@@ -40,6 +40,7 @@ using BESSy.Json.Utilities.LinqBridge;
 using System.Linq;
 #endif
 using BESSy.Json.Serialization;
+using System.Security;
 
 namespace BESSy.Json.Utilities
 {
@@ -81,9 +82,15 @@ namespace BESSy.Json.Utilities
     }
 #endif
 
-    internal static class ReflectionUtils
+#if !(NET20 || PORTABLE)
+    [SecuritySafeCritical]
+#endif
+    public static class ReflectionUtils
     {
         public static readonly Type[] EmptyTypes;
+        internal static readonly Type JsonIgnoreAttributeType = typeof(JsonIgnoreAttribute);
+        internal static readonly Type JsonPropertyAttributeType = typeof(JsonPropertyAttribute);
+
 
         static ReflectionUtils()
         {
@@ -594,13 +601,14 @@ namespace BESSy.Json.Utilities
             List<MemberInfo> targetMembers = new List<MemberInfo>();
 
             targetMembers.AddRange(GetFields(type, bindingAttr));
-            targetMembers.AddRange(GetProperties(type, bindingAttr));
+            targetMembers.AddRange(GetProperties(type, bindingAttr | BindingFlags.FlattenHierarchy));
 
             // for some reason .NET returns multiple members when overriding a generic member on a base class
             // http://social.msdn.microsoft.com/Forums/en-US/b5abbfee-e292-4a64-8907-4e3f0fb90cd9/reflection-overriden-abstract-generic-properties?forum=netfxbcl
             // filter members to only return the override on the topmost class
             // update: I think this is fixed in .NET 3.5 SP1 - leave this in for now...
             List<MemberInfo> distinctMembers = new List<MemberInfo>(targetMembers.Count);
+            
 
             foreach (var groupedMember in targetMembers.GroupBy(m => m.Name))
             {
@@ -613,17 +621,14 @@ namespace BESSy.Json.Utilities
                 }
                 else
                 {
-                    IList<MemberInfo> resolvedMembers = new List<MemberInfo>();
-                    foreach (MemberInfo memberInfo in members)
-                    {
-                        // this is a bit hacky
-                        // if the hiding property is hiding a base property and it is virtual
-                        // then this ensures the derived property gets used
-                        if (resolvedMembers.Count == 0)
-                            resolvedMembers.Add(memberInfo);
-                        else if (!IsOverridenGenericMember(memberInfo, bindingAttr) || memberInfo.Name == "Item")
-                            resolvedMembers.Add(memberInfo);
-                    }
+                    var resolvedMembers = new List<MemberInfo>();
+
+                    var first = members.FirstOrDefault(m => m.Module.Name.Contains("BESSy.Proxy")) ??
+                        members.FirstOrDefault(m => m.IsDefined(JsonIgnoreAttributeType, false) || m.IsDefined(JsonPropertyAttributeType, false)) ??
+                        members.First();
+
+                    if (first != null)
+                        resolvedMembers.Add(first);
 
                     distinctMembers.AddRange(resolvedMembers);
                 }
@@ -638,8 +643,8 @@ namespace BESSy.Json.Utilities
                 return false;
 
             PropertyInfo propertyInfo = (PropertyInfo)memberInfo;
-            if (!IsVirtual(propertyInfo))
-                return false;
+            //if (!IsVirtual(propertyInfo))
+            //    return false;
 
             Type declaringType = propertyInfo.DeclaringType;
             if (!declaringType.IsGenericType())

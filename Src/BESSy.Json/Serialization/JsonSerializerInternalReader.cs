@@ -44,10 +44,14 @@ using BESSy.Json.Utilities;
 using BESSy.Json.Utilities.LinqBridge;
 #else
 using System.Linq;
+using System.Security;
 #endif
 
 namespace BESSy.Json.Serialization
 {
+#if !(NET20 || PORTABLE)
+    [SecuritySafeCritical]
+#endif
     internal class JsonSerializerInternalReader : JsonSerializerInternalBase
     {
         internal enum PropertyPresence
@@ -941,7 +945,7 @@ To fix this error either change the JSON to a {1} or change the deserialized typ
                 {
                     propertyContract = GetContractSafe(currentValue.GetType());
 
-                    useExistingValue = (!propertyContract.IsReadOnlyOrFixedSize && !propertyContract.UnderlyingType.IsValueType());
+                    useExistingValue = (!propertyContract.IsReadOnlyOrFixedSize && !propertyContract.UnderlyingType.IsValueType() && property.PropertyContract.CreatedType == propertyContract.CreatedType);
                 }
             }
 

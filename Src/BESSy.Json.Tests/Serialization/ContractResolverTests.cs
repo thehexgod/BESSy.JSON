@@ -62,8 +62,7 @@ namespace BESSy.Json.Tests.Serialization
             IList<JsonProperty> properties = base.CreateProperties(type, memberSerialization);
 
             // only serializer properties that start with the specified character
-            properties =
-                properties.Where(p => p.PropertyName.StartsWith(_startingWithChar.ToString())).ToList();
+            properties = properties.Where(p => p.PropertyName.StartsWith(_startingWithChar.ToString())).ToList();
 
             return properties;
         }
@@ -71,7 +70,11 @@ namespace BESSy.Json.Tests.Serialization
 
     public class EscapedPropertiesContractResolver : DefaultContractResolver
     {
-        protected internal override string ResolvePropertyName(string propertyName)
+        //protected internal override string ResolvePropertyName(string propertyName)
+        //{
+        //    return base.ResolvePropertyName(propertyName + @"-'-""-");
+        //}
+        protected internal new string ResolvePropertyName(string propertyName)
         {
             return base.ResolvePropertyName(propertyName + @"-'-""-");
         }

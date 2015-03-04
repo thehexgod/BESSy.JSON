@@ -28,12 +28,16 @@ using System.Runtime.Serialization;
 using System.Reflection;
 using System.Globalization;
 using BESSy.Json.Utilities;
+using System.Security;
 
 namespace BESSy.Json.Serialization
 {
     /// <summary>
     /// The default serialization binder used when resolving and loading classes from type names.
     /// </summary>
+#if !(NET20 || PORTABLE)
+    [SecuritySafeCritical]
+#endif
     public class DefaultSerializationBinder : SerializationBinder
     {
         internal static readonly DefaultSerializationBinder Instance = new DefaultSerializationBinder();

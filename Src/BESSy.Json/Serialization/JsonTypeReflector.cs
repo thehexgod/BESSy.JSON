@@ -48,6 +48,9 @@ namespace BESSy.Json.Serialization
     }
 #endif
 
+#if !(NET20 || PORTABLE)
+    [SecuritySafeCritical]
+#endif
     internal static class JsonTypeReflector
     {
         private static bool? _dynamicCodeGeneration;

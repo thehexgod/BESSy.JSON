@@ -101,6 +101,30 @@ namespace BESSy.Json.Linq
             return Value;
         }
 
+        internal override void ReplaceItem(JToken existing, JToken replacement)
+        {
+            base.ReplaceItem(existing, replacement);
+
+            var parent = replacement.Parent;
+
+            if (parent == null)
+                return;
+
+            var obj = parent.Parent;
+
+            if (obj == null)
+                return;
+
+            while (obj.Parent != null)
+            {
+                parent = obj;
+                obj = obj.Parent;
+
+                if (obj is JObject && parent is JProperty)
+                    ((JObject)obj).InternalPropertyChanged(parent as JProperty);
+            }
+        }
+
         internal override void SetItem(int index, JToken item)
         {
             if (index != 0)
