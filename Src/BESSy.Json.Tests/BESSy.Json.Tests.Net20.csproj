@@ -293,12 +293,6 @@
     <Service Include="{3259AA49-8AA1-44D3-9025-A0B520596A8C}" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\Newtonsoft.Json\Newtonsoft.Json.Net20.csproj">
-      <Project>{A9AE40FF-1A21-414A-9FE7-3BE13644CC6D}</Project>
-      <Name>Newtonsoft.Json.Net20</Name>
-    </ProjectReference>
-  </ItemGroup>
-  <ItemGroup>
     <BootstrapperPackage Include="Microsoft.Net.Client.3.5">
       <Visible>False</Visible>
       <ProductName>.NET Framework 3.5 SP1 Client Profile</ProductName>
@@ -314,6 +308,12 @@
       <ProductName>Windows Installer 3.1</ProductName>
       <Install>true</Install>
     </BootstrapperPackage>
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\BESSY.Json\BESSY.Json.Net20.csproj">
+      <Project>{a9ae40ff-1a21-414a-9fe7-3be13644cc6d}</Project>
+      <Name>BESSY.Json.Net20</Name>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

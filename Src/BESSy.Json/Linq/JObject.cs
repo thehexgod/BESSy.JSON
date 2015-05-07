@@ -468,8 +468,9 @@ namespace BESSy.Json.Linq
             if (property == null)
                 return false;
 
+#if !(NETFX_CORE || PORTABLE40 || PORTABLE || NET20)
             OnPropertyChanging(propertyName);
-
+#endif
             property.Remove();
 
             OnPropertyChanged(propertyName);

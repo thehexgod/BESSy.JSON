@@ -8,8 +8,8 @@
     <ProjectGuid>{A9AE40FF-1A21-414A-9FE7-3BE13644CC6D}</ProjectGuid>
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>Newtonsoft.Json</RootNamespace>
-    <AssemblyName>Newtonsoft.Json</AssemblyName>
+    <RootNamespace>BESSy.Json</RootNamespace>
+    <AssemblyName>BESSy.Json</AssemblyName>
     <SignAssembly>false</SignAssembly>
     <AssemblyOriginatorKeyFile>
     </AssemblyOriginatorKeyFile>
@@ -51,7 +51,7 @@
     <DefineConstants>TRACE;DEBUG;NET20</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
-    <DocumentationFile>bin\Debug\Net20\Newtonsoft.Json.xml</DocumentationFile>
+    <DocumentationFile>bin\Debug\Net20\BESSy.Json.xml</DocumentationFile>
     <RunCodeAnalysis>true</RunCodeAnalysis>
     <CodeAnalysisRules>
     </CodeAnalysisRules>
@@ -64,7 +64,7 @@
     <DefineConstants>TRACE;NET20</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
-    <DocumentationFile>bin\Release\Net20\Newtonsoft.Json.xml</DocumentationFile>
+    <DocumentationFile>bin\Release\Net20\BESSy.Json.xml</DocumentationFile>
     <CodeAnalysisRuleSet>Newtonsoft.Json.ruleset</CodeAnalysisRuleSet>
     <RunCodeAnalysis>true</RunCodeAnalysis>
   </PropertyGroup>

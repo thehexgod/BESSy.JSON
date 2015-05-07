@@ -57,12 +57,13 @@
     </CodeAnalysisRules>
     <CodeAnalysisRuleSet>BESSy.Json.ruleset</CodeAnalysisRuleSet>
     <UseVSHostingProcess>true</UseVSHostingProcess>
+    <LangVersion>4</LangVersion>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <DebugType>pdbonly</DebugType>
     <Optimize>true</Optimize>
     <OutputPath>bin\Release\Net40\</OutputPath>
-    <DefineConstants>TRACE;CODE_ANALYSIS;NET40</DefineConstants>
+    <DefineConstants>TRACE;NET40;MONO</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
     <DocumentationFile>bin\Release\Net40\BESSy.Json.xml</DocumentationFile>
