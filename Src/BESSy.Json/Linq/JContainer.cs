@@ -188,6 +188,33 @@ namespace BESSy.Json.Linq
         }
 #endif
 
+        protected virtual void OnPropertyChanged(string propertyName)
+        {
+            if (PropertyChanged != null)
+                PropertyChanged(this, new PropertyChangedEventArgs(propertyName));
+        }
+
+#if !(NETFX_CORE || PORTABLE40 || PORTABLE || NET20)
+        /// <summary>
+        /// Raises the <see cref="PropertyChanging"/> event with the provided arguments.
+        /// </summary>
+        /// <param name="propertyName">Name of the property.</param>
+        protected virtual void OnPropertyChanging(string propertyName)
+        {
+            if (PropertyChanging != null)
+                PropertyChanging(this, new PropertyChangingEventArgs(propertyName));
+        }
+#endif
+
+        public event PropertyChangedEventHandler PropertyChanged;
+
+#if !(NET20 || NETFX_CORE || PORTABLE || PORTABLE40)
+        /// <summary>
+        /// Occurs when a property value is changing.
+        /// </summary>
+        public event PropertyChangingEventHandler PropertyChanging;
+#endif
+
         /// <summary>
         /// Gets a value indicating whether this token has child tokens.
         /// </summary>

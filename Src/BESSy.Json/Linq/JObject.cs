@@ -73,14 +73,7 @@ namespace BESSy.Json.Linq
         /// <summary>
         /// Occurs when a property value changes.
         /// </summary>
-        public event PropertyChangedEventHandler PropertyChanged;
 
-#if !(NET20 || NETFX_CORE || PORTABLE || PORTABLE40)
-        /// <summary>
-        /// Occurs when a property value is changing.
-        /// </summary>
-        public event PropertyChangingEventHandler PropertyChanging;
-#endif
 
         /// <summary>
         /// Initializes a new instance of the <see cref="JObject"/> class.
@@ -584,23 +577,7 @@ namespace BESSy.Json.Linq
         /// Raises the <see cref="PropertyChanged"/> event with the provided arguments.
         /// </summary>
         /// <param name="propertyName">Name of the property.</param>
-        protected virtual void OnPropertyChanged(string propertyName)
-        {
-            if (PropertyChanged != null)
-                PropertyChanged(this, new PropertyChangedEventArgs(propertyName));
-        }
 
-#if !(NETFX_CORE || PORTABLE40 || PORTABLE || NET20)
-        /// <summary>
-        /// Raises the <see cref="PropertyChanging"/> event with the provided arguments.
-        /// </summary>
-        /// <param name="propertyName">Name of the property.</param>
-        protected virtual void OnPropertyChanging(string propertyName)
-        {
-            if (PropertyChanging != null)
-                PropertyChanging(this, new PropertyChangingEventArgs(propertyName));
-        }
-#endif
 
 #if !(NETFX_CORE || PORTABLE40 || PORTABLE)
         // include custom type descriptor on JObject rather than use a provider because the properties are specific to a type
